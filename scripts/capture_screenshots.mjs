@@ -16,37 +16,37 @@ const frontend = path.join(root, "frontend");
 const outDir = path.join(root, "screenshots");
 const BASE = process.env.SHOT_BASE || "http://127.0.0.1:5174";
 
-const INCIDENT = `# Incident Report
+const INCIDENT = `# 故障报告
 
-## Incident Summary
-Production payment-service returned a high rate of HTTP 502 Bad Gateway from 09:25 UTC. Nginx marked all upstreams down after three pods entered CrashLoopBackOff.
+## 事件摘要
+生产环境 payment-service 自 09:25（UTC）起出现大量 HTTP 502 Bad Gateway。3 个 Pod 进入 CrashLoopBackOff 后，Nginx 将全部 upstream 标记为不可用。
 
-## Severity
-Critical
+## 严重级别
+严重（Critical）
 
-## Impact
-- POST /api/payment/charge and refund unavailable
-- Estimated 12,000+ online users affected
-- order-service callbacks stalled
+## 影响范围
+- POST /api/payment/charge、refund 接口不可用
+- 预计影响 12,000+ 在线用户
+- order-service 支付回调积压
 
-## Root Cause
-1. JVM heap exhausted (java.lang.OutOfMemoryError) → OOMKilled (exit 137)
-2. HikariCP pool saturated (100/100), leaked connections blocked threads
-3. Nginx upstream connect() failed (111: Connection refused)
+## 根因分析
+1. JVM 堆内存耗尽（java.lang.OutOfMemoryError）→ OOMKilled（exit 137）
+2. HikariCP 连接池打满（100/100），泄漏连接阻塞线程
+3. Nginx upstream connect() failed（111: Connection refused）
 
-## Evidence
-- kubectl_get_pods: payment-service-* CrashLoopBackOff, restarts 5
-- kubectl_logs: Java heap space + ConnectionPoolTimeout
-- knowledge_search: hit Kubernetes OOMKilled runbook
-- system_logs: nginx connect() failed × 18
+## 诊断证据
+- kubectl_get_pods：payment-service-* 处于 CrashLoopBackOff，重启 5 次
+- kubectl_logs：Java heap space + ConnectionPoolTimeout
+- knowledge_search：命中 Kubernetes OOMKilled 运维手册
+- system_logs：nginx connect() failed × 18
 
-## Recommended Action
-1. Scale deployment/payment-service to 5 replicas
-2. Raise memory limits 512Mi → 1Gi
-3. Enable HikariCP leak-detection-threshold=60000
+## 建议处理
+1. 将 deployment/payment-service 扩容至 5 副本
+2. memory limits 由 512Mi 提升至 1Gi
+3. 开启 HikariCP leak-detection-threshold=60000
 
-## Prevention
-- HPA on memory, PDB minAvailable=2, ReadinessProbe delay 60s
+## 预防措施
+- 基于内存配置 HPA，PDB minAvailable=2，ReadinessProbe 延迟 60s
 `;
 
 const USER = { id: 1, username: "sre-admin", email: "sre@example.com", role: "admin" };
@@ -343,6 +343,9 @@ async function main() {
     }, USER);
     await mockApi(page);
 
+    const only = process.env.SHOT_ONLY || "";
+
+    if (!only) {
     await page.goto(`${BASE}/overview`, { waitUntil: "networkidle" });
     try {
       await page.waitForSelector("text=/当前风险|Risk|health|健康/i", { timeout: 20000 });
@@ -353,17 +356,22 @@ async function main() {
       throw e;
     }
     await shot(page, "01-dashboard.png", 1200);
+    }
 
     await page.goto(`${BASE}/ops`, { waitUntil: "networkidle" });
     await page.getByPlaceholder(/输入运维问题/).fill("payment-service 返回大量 502，请分析原因");
     await page.getByRole("button", { name: "发送" }).click();
-    await page.getByText("Incident Report", { timeout: 15000 }).waitFor();
-    await shot(page, "02-agent-chat.png", 600);
+    await page.getByText("故障报告", { timeout: 15000 }).waitFor();
+    await shot(page, "02-agent-chat.png", 800);
+
+    if (only === "chat") {
+      await browser.close();
+      return;
+    }
 
     await page.evaluate(() => {
-      const box = document.querySelector(".markdown, .prose, section");
       const nodes = [...document.querySelectorAll("h1, h2, p, div")];
-      const hit = nodes.find((n) => n.textContent?.includes("Incident Summary"));
+      const hit = nodes.find((n) => n.textContent?.includes("事件摘要"));
       hit?.scrollIntoView({ block: "start" });
     });
     await shot(page, "06-incident-report.png", 400);
@@ -382,10 +390,19 @@ async function main() {
     await shot(page, "05-kubernetes.png", 800);
 
     const arch = path.join(root, "scripts", "architecture.html");
-    await page.goto(pathToFileURL(arch).href, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2500);
-    await page.locator(".mermaid svg, .mermaid").first().waitFor({ timeout: 15000 });
-    await shot(page, "07-architecture.png", 400);
+    const archPage = await browser.newPage({
+      viewport: { width: 1600, height: 1200 },
+      deviceScaleFactor: 2,
+    });
+    await archPage.goto(pathToFileURL(arch).href, { waitUntil: "networkidle" });
+    await archPage.locator(".mermaid svg").first().waitFor({ timeout: 20000 });
+    await archPage.waitForTimeout(800);
+    await archPage.locator("#capture").screenshot({
+      path: path.join(outDir, "07-architecture.png"),
+      type: "png",
+    });
+    await archPage.close();
+    console.log("wrote", "07-architecture.png");
 
     await browser.close();
   } finally {
