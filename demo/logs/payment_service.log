@@ -1,0 +1,32 @@
+2026-08-18 09:24:50.123 [http-nio-8080-exec-10] INFO  c.e.payment.PaymentController - 收到支付请求: orderId=ORD-20260818-001, amount=299.00
+2026-08-18 09:24:50.456 [http-nio-8080-exec-10] INFO  c.e.payment.PaymentService - 调用第三方支付网关: channel=wechat, amount=299.00
+2026-08-18 09:24:51.001 [http-nio-8080-exec-10] WARN  c.e.payment.PaymentGatewayClient - 支付网关响应超时(3000ms), 触发重试(1/3)
+2026-08-18 09:24:52.002 [http-nio-8080-exec-10] WARN  c.e.payment.PaymentGatewayClient - 支付网关响应超时(3002ms), 触发重试(2/3)
+2026-08-18 09:24:53.003 [http-nio-8080-exec-10] WARN  c.e.payment.PaymentGatewayClient - 支付网关响应超时(3001ms), 触发重试(3/3)
+2026-08-18 09:24:53.004 [http-nio-8080-exec-10] ERROR c.e.payment.PaymentGatewayClient - 支付网关调用失败: 3次重试均超时
+2026-08-18 09:24:53.005 [http-nio-8080-exec-10] ERROR c.e.payment.PaymentService - 订单支付失败: orderId=ORD-20260818-001
+2026-08-18 09:24:53.006 [http-nio-8080-exec-10] INFO  c.e.payment.PaymentController - 返回 502 Bad Gateway: orderId=ORD-20260818-001
+
+2026-08-18 09:25:00.321 [http-nio-8080-exec-11] WARN  o.apache.tomcat.jdbc.pool.ConnectionPool - 数据库连接池已耗尽(active=100/100), 等待超时: 30000ms
+2026-08-18 09:25:00.322 [http-nio-8080-exec-11] ERROR c.e.payment.PaymentService - 获取数据库连接失败: ConnectionPoolTimeout
+2026-08-18 09:25:00.323 [http-nio-8080-exec-11] ERROR c.e.payment.PaymentController - 返回 502 Bad Gateway: DB connection timeout
+
+2026-08-18 09:25:05.456 [http-nio-8080-exec-12] WARN  o.apache.tomcat.jdbc.pool.ConnectionPool - 数据库连接池已耗尽(active=100/100)
+2026-08-18 09:25:05.457 [http-nio-8080-exec-12] ERROR c.e.payment.PaymentService - 获取数据库连接失败
+2026-08-18 09:25:05.458 [http-nio-8080-exec-12] ERROR c.e.payment.PaymentController - 返回 502 Bad Gateway
+
+2026-08-18 09:25:10.789 [Thread-5] WARN  o.a.tomcat.jdbc.pool.ConnectionPool - 数据库连接泄漏检测: 检测到 12 个未归还连接
+
+2026-08-18 09:25:15.234 [http-nio-8080-exec-13] WARN  o.a.tomcat.jdbc.pool.ConnectionPool - 数据库连接池已耗尽(active=100/100)
+2026-08-18 09:25:15.235 [http-nio-8080-exec-13] ERROR c.e.payment.PaymentService - 获取数据库连接失败
+2026-08-18 09:25:15.236 [http-nio-8080-exec-13] ERROR c.e.payment.PaymentController - 返回 502 Bad Gateway
+
+2026-08-18 09:25:30.001 [http-nio-8080-exec-14] ERROR o.apache.catalina.core.ContainerBase - handleException: SocketException: Connection reset by peer
+
+2026-08-18 09:26:00.000 [http-nio-8080-exec-15] ERROR o.apache.catalina.core.ContainerBase - handleException: java.lang.OutOfMemoryError: Java heap space
+2026-08-18 09:26:00.001 [http-nio-8080-exec-15] ERROR c.e.payment.PaymentService - JVM 内存溢出: Java heap space
+2026-08-18 09:26:00.123 [http-nio-8080-exec-15] FATAL c.e.payment.Application - JVM 进程即将退出: OutOfMemoryError
+
+2026-08-18 09:26:01.456 [localhost-startStop-1] INFO  o.a.catalina.core.StandardEngine - 容器重启: payment-service (Pod 重启 #5)
+2026-08-18 09:26:05.789 [localhost-startStop-1] INFO  c.e.payment.Application - 应用启动完成, 已连接到数据库
+2026-08-18 09:26:06.000 [http-nio-8080-exec-1] INFO  c.e.payment.PaymentController - 服务恢复, 开始接受请求

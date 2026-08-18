@@ -27,7 +27,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-org/ai-devops-assistant.git
+git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
 cd ai-devops-assistant
 
 # 2. 配置环境变量
@@ -95,7 +95,7 @@ chmod +x scripts/deploy.sh
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-org/ai-devops-assistant.git
+git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
 cd ai-devops-assistant
 
 # 2. 配置生产环境变量

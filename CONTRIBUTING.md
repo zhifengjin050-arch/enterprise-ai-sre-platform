@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢你对 Enterprise AI DevOps Platform 的关注！我们欢迎各种形式的贡献。
+感谢你对 Enterprise AI SRE Autonomous Operations Platform 的关注！我们欢迎各种形式的贡献。
 
 ## 目录
 
@@ -24,7 +24,7 @@
 
 ### 报告 Bug
 
-如果你发现了 Bug，请 [创建 Issue](https://github.com/yourusername/ai-devops-platform/issues/new) 并包含：
+如果你发现了 Bug，请 [创建 Issue](https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform/issues/new) 并包含：
 
 - Bug 的简要描述
 - 复现步骤
@@ -34,7 +34,7 @@
 
 ### 提出新功能
 
-如果你有新功能的想法，请先 [搜索已有 Issues](https://github.com/yourusername/ai-devops-platform/issues) 确认是否已被提出，然后创建新 Issue 描述：
+如果你有新功能的想法，请先 [搜索已有 Issues](https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform/issues) 确认是否已被提出，然后创建新 Issue 描述：
 
 - 功能的使用场景
 - 期望的行为
@@ -57,8 +57,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/ai-devops-platform.git
-cd ai-devops-platform
+git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
+cd enterprise-ai-sre-platform
 
 # 创建虚拟环境
 python -m venv venv
@@ -73,7 +73,7 @@ pip install -r requirements.txt
 
 # 复制环境变量模板
 cp .env.example .env
-# 编辑 .env 填入你的 DeepSeek API Key
+# 编辑 .env 填入 SILICONFLOW_API_KEY
 
 # 初始化数据库
 python -c "from app.database.session import init_db; init_db()"
@@ -97,6 +97,7 @@ npm run dev
 ### Docker 部署
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 

@@ -1,8 +1,22 @@
-# 变更日志
+# Changelog
+
+All notable changes to this project are documented in this file.
 
 ## [v3.3.0] - 2026-08-18 — Enterprise Knowledge Hub
 
-### 🚀 新功能
+### Added
+
+- AI SRE Agent (LangGraph planning, reasoning, tool calling)
+- MCP integration (Kubernetes, Docker, SSH, system tools)
+- Enterprise Knowledge Hub (Feishu connector, encrypted credentials, sync pipeline)
+- RAG pipeline (chunk → embed → pgvector → `knowledge_search`)
+- Kubernetes diagnosis (pods, logs, events, 502 / OOM / CrashLoop)
+
+### Testing
+
+- Knowledge Hub suite: **28/28 passed**
+
+### 新功能
 
 - **企业知识 Hub（Knowledge Hub）**：多租户知识库，支持飞书 Wiki 连接器、外部知识源管理、凭据加密存储
 - **统一文档提供者**：Agent 知识搜索同时覆盖手动文档和 Hub 文档，organization_id 隔离

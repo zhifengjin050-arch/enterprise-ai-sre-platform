@@ -1,0 +1,36 @@
+LAST SEEN   TYPE      REASON              OBJECT                              MESSAGE
+9:26:00     Warning   BackOff             Pod/payment-service-6b9f7c8d4d-1     Back-off restarting failed container
+9:25:55     Warning   CrashLoopBackOff    Pod/payment-service-6b9f7c8d4d-1     CrashLoopBackOff (restart #5, backoff 300s)
+9:25:50     Warning   BackOff             Pod/payment-service-6b9f7c8d4d-2     Back-off restarting failed container
+9:25:45     Warning   CrashLoopBackOff    Pod/payment-service-6b9f7c8d4d-2     CrashLoopBackOff (restart #4, backoff 120s)
+9:25:40     Warning   BackOff             Pod/payment-service-6b9f7c8d4d-3     Back-off restarting failed container
+9:25:35     Warning   CrashLoopBackOff    Pod/payment-service-6b9f7c8d4d-3     CrashLoopBackOff (restart #3, backoff 60s)
+9:25:00     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-1     Memory cgroup out of memory: killed process 12345 (java)
+9:24:55     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-2     Memory cgroup out of memory: killed process 12346 (java)
+9:24:50     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-3     Memory cgroup out of memory: killed process 12347 (java)
+9:24:30     Normal    Pulling             Pod/payment-service-6b9f7c8d4d-1     Pulling image "registry.internal/payment-service:3.2.1"
+9:24:28     Normal    Created             Pod/payment-service-6b9f7c8d4d-1     Created container payment-service
+9:24:27     Normal    Started             Pod/payment-service-6b9f7c8d4d-1     Started container payment-service
+9:24:10     Normal    SuccessfulCreate    ReplicaSet/payment-service-6b9f7c8d4d  Created pod: payment-service-6b9f7c8d4d-1
+9:24:08     Normal    ScalingReplicaSet   Deployment/payment-service            Scaled up replica set payment-service-6b9f7c8d4d to 3
+9:23:50     Warning   Unhealthy           Pod/payment-service-6b9f7c8d4d-1     Liveness probe failed: HTTP probe failed with statuscode: 503
+9:23:48     Warning   Unhealthy           Pod/payment-service-6b9f7c8d4d-2     Readiness probe failed: HTTP probe failed with statuscode: 503
+9:23:45     Warning   Unhealthy           Pod/payment-service-6b9f7c8d4d-3     Readiness probe failed: HTTP probe failed with statuscode: 503
+9:23:30     Warning   BackOff             Pod/payment-service-6b9f7c8d4d-1     Back-off restarting failed container
+9:23:28     Warning   CrashLoopBackOff    Pod/payment-service-6b9f7c8d4d-1     CrashLoopBackOff (restart #2)
+9:23:20     Warning   BackOff             Pod/payment-service-6b9f7c8d4d-2     Back-off restarting failed container
+9:23:18     Warning   CrashLoopBackOff    Pod/payment-service-6b9f7c8d4d-2     CrashLoopBackOff (restart #2)
+9:23:10     Normal    Killing             Pod/payment-service-6b9f7c8d4d-1     Stopping container payment-service
+9:23:08     Normal    Killing             Pod/payment-service-6b9f7c8d4d-2     Stopping container payment-service
+9:23:05     Normal    Killing             Pod/payment-service-6b9f7c8d4d-3     Stopping container payment-service
+9:23:00     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-1     Memory cgroup out of memory: killed process 12340 (java)
+9:22:55     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-2     Memory cgroup out of memory: killed process 12341 (java)
+9:22:50     Warning   OOMKilling          Pod/payment-service-6b9f7c8d4d-3     Memory cgroup out of memory: killed process 12342 (java)
+9:22:30     Normal    SuccessfulCreate    ReplicaSet/payment-service-v3-6b9f7c8d4d  Created pod: payment-service-6b9f7c8d4d-1
+9:22:28     Normal    ScalingReplicaSet   Deployment/payment-service            Scaled up replica set payment-service-v3-6b9f7c8d4d to 3
+9:22:00     Normal    SuccessfulDelete    ReplicaSet/payment-service-v2-a1b2c3d4e5  Deleted pod: payment-service-v2-a1b2c3d4e5-xyz
+9:21:55     Normal    ScalingReplicaSet   Deployment/payment-service            Scaled down replica set payment-service-v2-a1b2c3d4e5 to 0
+9:21:50     Normal    ScalingReplicaSet   Deployment/payment-service            Scaled up replica set payment-service-v3-6b9f7c8d4d to 1
+9:21:45     Normal    RollingUpdate       Deployment/payment-service            Rolling update to image registry.internal/payment-service:3.2.1
+9:20:00     Normal    SuccessfulCreate    ReplicaSet/payment-service-v2-a1b2c3d4e5  Created pod: payment-service-v2-a1b2c3d4e5-abc
+9:19:55     Normal    ScalingReplicaSet   Deployment/payment-service            Scaled up replica set payment-service-v2-a1b2c3d4e5 to 2

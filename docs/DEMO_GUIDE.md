@@ -12,7 +12,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/your-org/enterprise-ai-sre-platform.git
+git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
 cd enterprise-ai-sre-platform
 
 # 2. 配置环境变量
