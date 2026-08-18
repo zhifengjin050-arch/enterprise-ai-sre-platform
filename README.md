@@ -1,288 +1,171 @@
-# Enterprise AI SRE Autonomous Operations Platform
+<div align="center">
 
-<p align="center">
-  <img src="https://img.shields.io/badge/AI-SRE-0ea5e9?style=for-the-badge" alt="AI SRE">
-</p>
+# Enterprise AI DevOps Platform
 
-<p align="center">
-  <b>Enterprise AI SRE Autonomous Operations Platform</b><br>
-  An AI-powered SRE Agent platform built with LangGraph, MCP and RAG for autonomous infrastructure diagnosis.
-</p>
+**Enterprise AI SRE Agent for autonomous incident diagnosis, MCP tool calling, and RAG-backed runbooks.**
 
-<p align="center">
-  <a href="README.md">简体中文</a> · <a href="README_EN.md">English</a>
-</p>
+面向企业 SRE / DevOps 的 AI 自主运维平台：自然语言描述故障，Agent 规划工具链、检索知识库、输出结构化 Incident Report。
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Version-3.3.0-3B82F6?style=flat-square" alt="Version">
-  <img src="https://img.shields.io/badge/Python-3.12%2B-blue?style=flat-square&logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=flat-square&logo=fastapi" alt="FastAPI">
-  <img src="https://img.shields.io/badge/LangGraph-1.2%2B-orange?style=flat-square" alt="LangGraph">
-  <img src="https://img.shields.io/badge/MCP-1.0%2B-blueviolet?style=flat-square" alt="MCP">
-  <img src="https://img.shields.io/badge/React_18-SPA-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/Kubernetes-Diagnosis-326CE5?style=flat-square&logo=kubernetes" alt="Kubernetes">
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Tests-28%2F28_Knowledge_Hub-brightgreen?style=flat-square" alt="Tests">
-</p>
+[English](README_EN.md) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
-<p align="center">
-  <a href="#项目简介">简介</a> •
-  <a href="#核心能力">能力</a> •
-  <a href="#系统架构">架构</a> •
-  <a href="#5-分钟-demo">Demo</a> •
-  <a href="#快速启动">启动</a> •
-  <a href="#screenshots">截图</a>
-</p>
+[![Version](https://img.shields.io/badge/Version-v3.3.0-3B82F6)]()
+[![Python](https://img.shields.io/badge/Python-3.12%2B-blue)]()
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)]()
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent-orange)]()
+[![MCP](https://img.shields.io/badge/MCP-Tool_Calling-8A2BE2)]()
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
+</div>
 
 ---
 
-## 项目简介
+## Positioning
 
-面向企业 SRE / DevOps 的 AI 自主运维平台。用自然语言描述故障，Agent 自动规划、调用 Kubernetes / Docker / SSH 工具、检索企业知识库，并生成结构化 Incident Report。
+This is **not** a chatbot demo. It is an enterprise operations product:
 
----
+| Capability | What it does |
+|------------|----------------|
+| AI Agent | LangGraph planner + reasoning over live infra evidence |
+| MCP Tool Calling | Dynamic discovery of Kubernetes / Docker / SSH tools |
+| RAG Knowledge Hub | Multi-tenant runbooks, SOP retrieval, Feishu sync |
+| Memory | Conversation + working memory for multi-step RCA |
+| Multi-tenant | JWT, RBAC, organization isolation |
+| Cloud native | Docker Compose; Kubernetes-oriented diagnosis |
 
-## Why AI SRE?
-
-| 对比 | 传统 SRE | AI SRE Platform |
-|------|----------|-----------------|
-| 故障响应 | 告警 → 跳板机 → 查日志，30 分钟+ | Agent 自动诊断，约 20 秒出报告 |
-| 工具操作 | 手写 kubectl / SSH / Docker | 自然语言规划并执行工具链 |
-| 知识管理 | Wiki / 聊天记录散落 | RAG Knowledge Hub 统一检索 |
-| 工具扩展 | 改 Agent 代码才能接新工具 | MCP 动态发现，无需改编排层 |
-| 可观测性 | 日志 / 指标 / Trace 割裂 | Agent Trace + SSE + Prometheus |
-| 多租户 | 权限体系不完整 | JWT + RBAC + Organization 隔离 |
+Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform)
 
 ---
 
-## 核心能力
+## Features
 
-### AI SRE Agent
-
-LangGraph 有状态工作流：`START → agent → tools → agent → END`。Planner 拆解问题，Reasoning 结合工具结果与知识库生成 RCA。
-
-### LangGraph Workflow
-
-Agent Node 注入 RAG / Memory 上下文后调用 LLM；Tools Node 并行执行内置工具与 MCP 工具，再回到 Agent 综合结论。
-
-### MCP Tool Ecosystem
-
-Model Context Protocol（stdio）动态发现企业运维工具：System / Docker / Kubernetes / SSH，无需为每个工具改 Agent 代码。
-
-### RAG Knowledge Hub
-
-文档上传、飞书 Wiki 同步、pgvector 语义检索。`knowledge_search` 按 `organization_id` 隔离，Agent 自动引用 SOP。
-
-### Kubernetes Diagnosis
-
-覆盖 CrashLoopBackOff、OOMKilled、ImagePullBackOff、Pending、502/503。结合 Pod 状态、日志与知识库给出修复建议。
-
-### Multi Tenant Architecture
-
-Organization 级数据隔离；角色 Admin / DevOps / Viewer；外部知识源凭据 Fernet 加密存储。
-
-### Agent Trace
-
-全链路记录用户请求、RAG、LLM、每一次 Tool Call 的输入 / 输出 / 耗时，前端瀑布时间线可视化。
-
-### SSE Streaming
-
-Server-Sent Events 实时推送推理与工具进度，控制台 Live Execution 面板同步展示。
+- **AI Agent runtime** — `START → agent → tools → agent → END`
+- **MCP tool ecosystem** — System / Docker / Kubernetes / SSH without rewriting the orchestrator
+- **RAG Knowledge Hub** — pgvector search scoped by `organization_id`
+- **Kubernetes diagnosis** — CrashLoopBackOff, OOMKilled, ImagePullBackOff, 502/503
+- **Agent Trace + SSE** — every tool call timed and streamed to the console
+- **Enterprise automation** — incident reports, runbook citation, multi-tenant RBAC
 
 ---
 
-## 应用场景
+## Architecture
 
-| 场景 | 示例输入 |
-|------|----------|
-| 生产 502 | `payment-service 返回大量 502，请分析原因` |
-| Pod 崩溃 | `production 命名空间有 CrashLoopBackOff，帮我查` |
-| 连接池 | `支付服务数据库连接打满了怎么处理` |
-| 巡检 | `检查所有托管服务器的 CPU 和磁盘` |
-| SOP 查询 | `OOMKilled 的标准处理步骤是什么` |
-
----
-
-## 系统架构
+<img src="docs/images/architecture.png" alt="System architecture" width="100%" />
 
 ```mermaid
 flowchart TB
-    User([User]) --> Front[React SPA]
-    Front --> API[FastAPI REST SSE WebSocket]
-    API --> Agent[LangGraph Agent]
-    Agent --> LLM[DeepSeek via SiliconFlow]
+    User([SRE / DevOps]) --> UI[React Dashboard]
+    UI --> API[FastAPI Gateway]
+    API --> Agent[LangGraph Agent Runtime]
+    Agent --> Mem[Memory]
     Agent --> RAG[RAG Knowledge Hub]
-    Agent --> MCP[MCP Client]
-    Agent --> Tools[Builtin Tools]
+    Agent --> MCP[MCP Tool Calling]
     MCP --> K8s[Kubernetes]
     MCP --> Docker[Docker]
     MCP --> SSH[SSH]
-    RAG --> PG[(PostgreSQL pgvector)]
-    API --> PG
+    RAG --> PG[(PostgreSQL + pgvector)]
+    subgraph security [Multi-tenant Security]
+      JWT[JWT / RBAC]
+      Org[Organization isolation]
+    end
+    API -.-> JWT
 ```
 
-完整说明见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+### Agent workflow
+
+```mermaid
+flowchart LR
+    Q[Incident query] --> P[Planner]
+    P --> T[Tool calling]
+    T --> R[RAG / Memory]
+    R --> L[LLM reasoning]
+    L --> I[Incident Report]
+```
 
 ---
 
-## 技术栈
+## Use cases
 
-| 层 | 技术 |
-|----|------|
-| Agent | LangGraph + LangChain |
-| LLM | DeepSeek-V4-Flash（SiliconFlow） |
-| API | FastAPI + Uvicorn |
-| Knowledge | RAG + pgvector + Feishu connector |
-| Tools | MCP + kubectl / Docker / SSH |
-| Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
-| Data | PostgreSQL 16 / SQLite（开发） |
-| Observability | Agent Trace, SSE, Prometheus, Grafana |
-| Deploy | Docker Compose |
+| Scenario | Example |
+|----------|---------|
+| Production 502 | `payment-service is returning 502, find the root cause` |
+| Pod crash | `CrashLoopBackOff in production namespace` |
+| Capacity | `database connection pool is exhausted` |
+| Fleet check | `inspect CPU and disk on managed hosts` |
+| SOP lookup | `standard steps for OOMKilled` |
 
 ---
 
-## 5 分钟 Demo
+## Tech Stack
 
-生产 Kubernetes 环境：`payment-service` 大量 HTTP 502。
-
-1. 登录系统（`/login` 注册或登录）。
-2. 打开 Copilot（`/ops`），输入：
-
-```text
-payment-service 返回大量 502，请分析原因
-```
-
-3. Agent 自动调用：
-
-- `kubectl_get_pods`
-- `kubectl_logs`
-- `knowledge_search`
-- `system_logs`
-
-4. 输出 Incident Report：
-
-- Root Cause Analysis
-- Incident Timeline
-- Solution Recommendation
-
-导入 Demo 知识库：
-
-```bash
-python demo/import_demo_data.py
-```
-
-剧本与仿真日志见 [demo/](demo/) 与 [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md)。
+| Layer | Stack |
+|-------|--------|
+| Agent | LangGraph · LangChain · DeepSeek (OpenAI-compatible) |
+| API | Python 3.12 · FastAPI · SSE |
+| Knowledge | RAG · pgvector · Feishu connector |
+| Tools | MCP · kubectl · Docker · SSH |
+| Frontend | React 18 · TypeScript · Vite · Tailwind |
+| Data | PostgreSQL 16 |
+| Ops | Prometheus · Grafana · Docker Compose |
 
 ---
 
 ## Screenshots
 
-| Dashboard | Agent Chat |
-|-----------|------------|
-| ![Dashboard](screenshots/01-dashboard.png) | ![Agent Chat](screenshots/02-agent-chat.png) |
+| Dashboard | Agent interaction |
+|-----------|-------------------|
+| ![Dashboard](docs/images/dashboard.png) | ![Agent](docs/images/agent-chat.png) |
 
-| Knowledge Hub | Trace Viewer |
-|---------------|--------------|
-| ![Knowledge Hub](screenshots/03-knowledge-hub.png) | ![Trace](screenshots/04-trace-viewer.png) |
+| Kubernetes | Architecture |
+|------------|--------------|
+| ![Kubernetes](docs/images/kubernetes.png) | ![Architecture](docs/images/architecture.png) |
 
-| Kubernetes | Incident Report |
-|------------|-----------------|
-| ![Kubernetes](screenshots/05-kubernetes.png) | ![Incident Report](screenshots/06-incident-report.png) |
-
-![Architecture](screenshots/07-architecture.png)
+Product preview assets for GitHub showcase (1440-class widescreen). Live console routes: `/overview`, `/ops`, `/infra`, `/knowledge`, `/traces`.
 
 ---
 
-## 快速启动
-
-### 前置
-
-- Python 3.12+
-- Node.js 18+（本地前端）
-- Docker（可选）
-- [SiliconFlow](https://cloud.siliconflow.cn) API Key
-
-### Docker
+## Quick Start
 
 ```bash
 git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
 cd enterprise-ai-sre-platform
 cp .env.example .env
-# 编辑 .env，填入 SILICONFLOW_API_KEY
+# set SILICONFLOW_API_KEY (or compatible LLM key)
 docker compose up -d
 ```
 
-浏览器打开 http://localhost 注册后使用。
-
-### 本地开发
-
-**Backend**
+Open http://localhost and register. Import demo knowledge:
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env
-alembic upgrade head
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python demo/import_demo_data.py
 ```
 
-**Frontend**
+Local backend: `uvicorn app.main:app --reload --port 8000`  
+Local frontend: `cd frontend && npm install && npm run dev`
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+---
 
-前端开发服务器：http://localhost:5173（代理 `/api` 到 `8000`）。
+## Deployment
 
-### 控制台路由
+| Mode | Entry |
+|------|--------|
+| Docker Compose | `docker compose up -d` |
+| Kubernetes diagnosis | Agent tools against the target cluster |
+| Config | `.env.example` — never commit real `.env` |
 
-| 路由 | 页面 |
-|------|------|
-| `/overview` | Dashboard |
-| `/ops` | AI SRE Copilot |
-| `/infra` | Hosts / Docker / Kubernetes |
-| `/knowledge` | Knowledge Hub |
-| `/traces` | Agent Trace |
-| `/incidents` | Incidents |
-| `/monitor` | Monitoring |
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
 ## Roadmap
 
-### v3.3.0（当前）
+**v3.3.0 (current):** LangGraph Agent, MCP, RAG Hub, multi-tenant, Trace, SSE, Docker.
 
-- [x] LangGraph Agent、MCP、RAG Knowledge Hub
-- [x] Kubernetes 诊断、多租户、Trace、SSE
-- [x] Demo 数据包与开源文档
-
-### v3.4（Planned，未实现）
-
-- Multi Cloud Intelligence
-- Autonomous Repair Workflow
-- MCP Ecosystem
-
----
-
-## 文档
-
-- [架构](docs/ARCHITECTURE.md)
-- [Demo 指南](docs/DEMO_GUIDE.md)
-- [面试指南](docs/INTERVIEW_GUIDE.md)
-- [发布说明](docs/V3.3_RELEASE_NOTES.md)
-- [贡献](CONTRIBUTING.md)
-- [安全](SECURITY.md)
-- [变更日志](CHANGELOG.md)
-
----
-
-## GitHub
-
-https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform
+Later: multi-cloud intelligence, autonomous repair workflows, broader MCP catalog.
 
 ---
 
 ## License
 
-[MIT](LICENSE) © 2026 Enterprise AI SRE Platform
+[MIT](LICENSE)
+
+[CONTRIBUTING.md](CONTRIBUTING.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md)

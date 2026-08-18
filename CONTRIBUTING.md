@@ -13,7 +13,7 @@
 
 ## 行为准则
 
-本项目采用 [Contributor Covenant](https://www.contributor-covenant.org/) 行为准则。我们希望所有参与者都能：
+本项目采用 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)（Contributor Covenant 2.1）。我们希望所有参与者都能：
 
 - 友好、耐心地对待他人
 - 尊重不同的观点和经验
