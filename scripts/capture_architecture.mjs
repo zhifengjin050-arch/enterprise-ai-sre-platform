@@ -17,8 +17,8 @@ const page = await browser.newPage({
   deviceScaleFactor: 2,
 });
 await page.goto(pathToFileURL(html).href, { waitUntil: "networkidle" });
-await page.locator(".mermaid svg").first().waitFor({ timeout: 20000 });
-await page.waitForTimeout(1000);
+await page.locator("#capture").waitFor({ timeout: 10000 });
+await page.waitForTimeout(400);
 await page.locator("#capture").screenshot({ path: out, type: "png" });
 await browser.close();
 console.log("wrote", out);

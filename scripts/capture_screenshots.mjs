@@ -395,8 +395,8 @@ async function main() {
       deviceScaleFactor: 2,
     });
     await archPage.goto(pathToFileURL(arch).href, { waitUntil: "networkidle" });
-    await archPage.locator(".mermaid svg").first().waitFor({ timeout: 20000 });
-    await archPage.waitForTimeout(800);
+    await archPage.locator("#capture").waitFor({ timeout: 10000 });
+    await archPage.waitForTimeout(400);
     await archPage.locator("#capture").screenshot({
       path: path.join(outDir, "07-architecture.png"),
       type: "png",

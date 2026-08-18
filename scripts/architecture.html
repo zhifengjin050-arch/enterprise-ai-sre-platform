@@ -3,56 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <title>Enterprise AI SRE Platform Architecture</title>
-  <script type="module">
-    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-    mermaid.initialize({
-      startOnLoad: true,
-      securityLevel: "loose",
-      theme: "base",
-      fontFamily: "Segoe UI, Helvetica, Arial, sans-serif",
-      flowchart: { curve: "linear", nodeSpacing: 28, rankSpacing: 36, padding: 12 },
-      themeVariables: {
-        fontSize: "18px",
-        fontFamily: "Segoe UI, Helvetica, Arial, sans-serif",
-        primaryColor: "#DBEAFE",
-        primaryTextColor: "#0F172A",
-        primaryBorderColor: "#2563EB",
-        lineColor: "#334155",
-        secondaryColor: "#E0E7FF",
-        tertiaryColor: "#F1F5F9",
-        clusterBkg: "#F8FAFC",
-        clusterBorder: "#94A3B8",
-      },
-    });
-  </script>
   <style>
+    * { box-sizing: border-box; }
     html, body {
       margin: 0;
       background: #ffffff;
       font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      color: #0f172a;
     }
     #capture {
       display: inline-block;
       background: #ffffff;
-      padding: 28px 36px 32px;
+      padding: 32px 40px 36px;
     }
     h1 {
       margin: 0 0 6px;
-      color: #0f172a;
       font-size: 26px;
       font-weight: 700;
       letter-spacing: -0.02em;
     }
     .sub {
-      margin: 0 0 20px;
+      margin: 0 0 28px;
       color: #475569;
       font-size: 15px;
     }
-    .mermaid {
-      background: #ffffff;
+    .flow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
     }
-    .mermaid svg {
-      max-width: none !important;
+    .node {
+      background: #dbeafe;
+      border: 2px solid #2563eb;
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 10px 22px;
+      font-size: 16px;
+      font-weight: 650;
+      line-height: 1.3;
+      text-align: center;
+      min-width: 168px;
+    }
+    .node.pill {
+      border-radius: 999px;
+    }
+    .node.wide {
+      min-width: 280px;
+    }
+    .arrow {
+      width: 2px;
+      height: 22px;
+      background: #334155;
+      position: relative;
+      margin: 2px 0;
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -1px;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid #334155;
+      border-bottom: 2px solid #334155;
+      transform: translateX(-50%) rotate(45deg);
+      background: transparent;
+    }
+    .layers {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 0.9fr;
+      gap: 20px;
+      width: 1100px;
+      align-items: stretch;
+    }
+    .card {
+      background: #f8fafc;
+      border: 1.5px solid #94a3b8;
+      border-radius: 12px;
+      padding: 14px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #334155;
+      letter-spacing: 0.01em;
+    }
+    .card .body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .node.sm {
+      min-width: 0;
+      padding: 8px 14px;
+      font-size: 15px;
+    }
+    .cyl {
+      background: #dbeafe;
+      border: 2px solid #2563eb;
+      border-radius: 10px;
+      padding: 14px 18px 12px;
+      min-width: 210px;
+      font-size: 15px;
+      font-weight: 650;
+      text-align: center;
+    }
+    .cyl .kind {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #1d4ed8;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .note {
+      margin-top: 18px;
+      color: #64748b;
+      font-size: 13px;
+      text-align: center;
     }
   </style>
 </head>
@@ -60,40 +143,48 @@
   <div id="capture">
     <h1>Enterprise AI SRE Autonomous Operations Platform</h1>
     <p class="sub">v3.3.0 — User · Frontend · FastAPI · Agent · MCP · Tools · RAG · Database</p>
-    <pre class="mermaid">
-flowchart TB
-    User(["User / Browser"]) --> Front["React SPA"]
-    Front --> API["FastAPI  REST + SSE + WebSocket"]
 
-    API --> Agent["LangGraph Agent"]
+    <div class="flow">
+      <div class="node pill">User / Browser</div>
+      <div class="arrow"></div>
+      <div class="node">React SPA</div>
+      <div class="arrow"></div>
+      <div class="node wide">FastAPI REST + SSE + WebSocket</div>
+      <div class="arrow"></div>
+      <div class="node">LangGraph Agent</div>
+    </div>
 
-    subgraph intel [Intelligence]
-      LLM["DeepSeek via SiliconFlow"]
-      RAG["RAG Knowledge Hub"]
-    end
+    <div class="layers">
+      <section class="card">
+        <h2>Tool Layer</h2>
+        <div class="body" style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;width:100%">
+          <div class="body">
+            <div class="node sm">MCP Client</div>
+            <div class="arrow"></div>
+            <div class="node sm" style="white-space:nowrap;padding:12px 22px">Kubernetes · Docker · SSH</div>
+          </div>
+          <div class="node sm">Builtin Tools</div>
+        </div>
+      </section>
 
-    subgraph tools [Tool Layer]
-      MCP["MCP Client"]
-      Builtin["Builtin Tools"]
-      K8s["Kubernetes"]
-      Docker["Docker"]
-      SSH["SSH"]
-    end
+      <section class="card">
+        <h2>Intelligence</h2>
+        <div class="body">
+          <div class="node sm">DeepSeek via SiliconFlow</div>
+          <div class="arrow"></div>
+          <div class="node sm">RAG Knowledge Hub</div>
+        </div>
+      </section>
 
-    subgraph data [Data]
-      PG[("PostgreSQL + pgvector")]
-    end
+      <section class="card">
+        <h2>Data</h2>
+        <div class="body" style="justify-content:center">
+          <div class="cyl"><span class="kind">Database</span>PostgreSQL + pgvector</div>
+        </div>
+      </section>
+    </div>
 
-    Agent --> LLM
-    Agent --> RAG
-    Agent --> MCP
-    Agent --> Builtin
-    MCP --> K8s
-    MCP --> Docker
-    MCP --> SSH
-    RAG --> PG
-    API --> PG
-    </pre>
+    <p class="note">Agent → MCP / Builtin Tools / LLM / RAG &nbsp;·&nbsp; FastAPI &amp; RAG → PostgreSQL</p>
   </div>
 </body>
 </html>
