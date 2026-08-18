@@ -1,0 +1,26 @@
+# ============================================================
+# Prometheus 配置 — AI DevOps Agent 指标采集
+# ============================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# 告警规则
+rule_files:
+  - "alerts.yml"
+
+# 采集目标
+scrape_configs:
+  # Backend FastAPI 指标
+  - job_name: "ai-devops-backend"
+    static_configs:
+      - targets: ["backend:8000"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+    scheme: http
+
+  # Node 主机指标 (如需采集宿主机指标，部署 node_exporter)
+  # - job_name: "node"
+  #   static_configs:
+  #     - targets: ["node-exporter:9100"]

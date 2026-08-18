@@ -1,0 +1,164 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "AI DevOps Agent — 系统总览",
+  "version": 1,
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "panels": [
+    {
+      "title": "CPU 使用率",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 4, "x": 0, "y": 0},
+      "targets": [{"expr": "devops_cpu_usage_percent{host=\"localhost\"}", "refId": "A"}],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "maxVizHeight": 300,
+        "maxVizWidth": 300
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 70},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "title": "内存使用率",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 4, "x": 4, "y": 0},
+      "targets": [{"expr": "devops_memory_usage_percent{host=\"localhost\"}", "refId": "A"}],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "maxVizHeight": 300,
+        "maxVizWidth": 300
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 80},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "title": "磁盘使用率",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 4, "x": 8, "y": 0},
+      "targets": [{"expr": "devops_disk_usage_percent{host=\"localhost\"}", "refId": "A"}],
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"]},
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "maxVizHeight": 300,
+        "maxVizWidth": 300
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 75},
+              {"color": "red", "value": 90}
+            ]
+          },
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "title": "HTTP 请求速率",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{"expr": "rate(devops_http_requests_total[5m])", "refId": "A", "legendFormat": "总请求"}],
+      "options": {"legend": {"calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom"}},
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "title": "HTTP 请求耗时",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{"expr": "rate(devops_http_request_duration_seconds_sum[5m]) / rate(devops_http_request_duration_seconds_count[5m])", "refId": "A", "legendFormat": "平均耗时"}],
+      "options": {"legend": {"calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom"}},
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "title": "Agent 请求次数",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 4, "x": 0, "y": 16},
+      "targets": [{"expr": "devops_agent_requests_total", "refId": "A"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "none"}}
+    },
+    {
+      "title": "Agent 成功率",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 4, "x": 4, "y": 16},
+      "targets": [{"expr": "devops_agent_success_total / devops_agent_requests_total * 100", "refId": "A"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "title": "Agent 执行耗时",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 16},
+      "targets": [{"expr": "rate(devops_agent_duration_seconds_sum[5m]) / rate(devops_agent_duration_seconds_count[5m])", "refId": "A", "legendFormat": "平均耗时"}],
+      "options": {"legend": {"calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom"}},
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "title": "K8s Pod 状态",
+      "type": "bargauge",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 22},
+      "targets": [
+        {"expr": "devops_k8s_pods_running", "refId": "A", "legendFormat": "Running"},
+        {"expr": "devops_k8s_pods_pending", "refId": "B", "legendFormat": "Pending"},
+        {"expr": "devops_k8s_pods_failed", "refId": "C", "legendFormat": "Failed"}
+      ],
+      "options": {"orientation": "horizontal", "showThresholdLabels": false, "showThresholdMarkers": true},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}}
+    },
+    {
+      "title": "Docker 容器数",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 4, "x": 0, "y": 28},
+      "targets": [{"expr": "devops_docker_containers_running", "refId": "A", "legendFormat": "运行中"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "orientation": "auto", "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "none"}}
+    }
+  ]
+}

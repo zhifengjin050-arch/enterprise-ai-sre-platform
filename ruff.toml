@@ -1,0 +1,56 @@
+# ============================================================
+# Enterprise AI DevOps Agent — Ruff Configuration
+# ============================================================
+
+# Python 版本目标
+target-version = "py312"
+
+# 排除目录
+exclude = [
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "frontend",
+    "logs",
+    "*.egg-info",
+]
+
+# 允许的行长（与 black 保持一致）
+line-length = 120
+
+# 启用的规则集
+select = [
+    "E",   # pycodestyle 错误
+    "W",   # pycodestyle 警告
+    "F",   # pyflakes
+    "I",   # isort (导入排序)
+    "N",   # pep8-naming (命名规范)
+    "UP",  # pyupgrade (Python 升级)
+    "RUF", # ruff 自定义规则
+    "B",   # flake8-bugbear (常见错误)
+    "SIM", # flake8-simplify (简化代码)
+]
+
+# 忽略的规则
+ignore = [
+    "E501",   # 行长超过限制 (由 black 管理)
+    "E731",   # lambda 赋值 (允许)
+    "UP007",  # X | Y 联合类型 (Python 3.10+)
+    "RUF001", # 字符串中包含混淆字符
+    "RUF012", # 可变类属性类型注解
+]
+
+# 允许未使用的导入 (__init__.py)
+[per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["F401", "N802", "N803", "N806"]
+
+# 修复配置
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15

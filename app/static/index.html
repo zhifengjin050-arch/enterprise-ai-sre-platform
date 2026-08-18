@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 智能运维助手 — AI DevOps Assistant</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+
+  <!-- 背景光晕 -->
+  <div class="bg-orb bg-orb--top"></div>
+  <div class="bg-orb bg-orb--bottom"></div>
+
+  <!-- 主容器 -->
+  <div class="app-shell">
+
+    <!-- 左侧面板 -->
+    <aside class="sidebar">
+
+      <!-- 品牌标识 -->
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">AI 智能<br>运维助手</h1>
+        <p class="sidebar-subtitle">Enterprise AI DevOps Agent<br>企业级智能运维平台</p>
+      </div>
+
+      <!-- 在线状态 -->
+      <div class="status-card glass">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-label">在线运行</span>
+        </div>
+        <div class="status-model">
+          <span class="status-meta-label">模型引擎</span>
+          <span class="status-meta-value">DeepSeek V4 Flash</span>
+        </div>
+      </div>
+
+      <!-- 服务器状态仪表盘 -->
+      <div class="dashboard-card glass">
+        <h3 class="dashboard-title">服务器状态</h3>
+        <div class="dashboard-server" id="server-status">
+          <div class="dash-row dash-server-name">
+            <span class="dash-dot dash-dot--green"></span>
+            <span>本地服务器</span>
+          </div>
+          <div class="dash-row">
+            <span class="dash-label">CPU</span>
+            <div class="dash-bar-bg"><div class="dash-bar dash-bar--cpu" id="cpu-bar" style="width:0%"></div></div>
+            <span class="dash-value" id="cpu-value">--</span>
+          </div>
+          <div class="dash-row">
+            <span class="dash-label">内存</span>
+            <div class="dash-bar-bg"><div class="dash-bar dash-bar--mem" id="mem-bar" style="width:0%"></div></div>
+            <span class="dash-value" id="mem-value">--</span>
+          </div>
+          <div class="dash-row">
+            <span class="dash-label">磁盘</span>
+            <div class="dash-bar-bg"><div class="dash-bar dash-bar--disk" id="disk-bar" style="width:0%"></div></div>
+            <span class="dash-value" id="disk-value">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 运维工具 -->
+      <div class="tools-card glass">
+        <h3 class="tools-title">运维工具</h3>
+        <ul class="tools-list">
+          <li><span class="tool-icon">&#9881;</span><span class="tool-name">系统监控</span><span class="tool-badge">在线</span></li>
+          <li><span class="tool-icon">&#9636;</span><span class="tool-name">Docker 管理</span><span class="tool-badge">在线</span></li>
+          <li><span class="tool-icon">&#9776;</span><span class="tool-name">日志分析</span><span class="tool-badge">在线</span></li>
+          <li><span class="tool-icon">&#9729;</span><span class="tool-name">Kubernetes</span><span class="tool-badge">就绪</span></li>
+        </ul>
+      </div>
+
+    </aside>
+
+    <!-- 主聊天区域 -->
+    <main class="chat-area">
+      <div class="chat-container glass">
+
+        <!-- 消息列表 -->
+        <div class="chat-messages" id="chat-messages">
+          <!-- 欢迎消息（由 JS 动态渲染，此处留空） -->
+        </div>
+
+        <!-- 执行轨迹（可折叠） -->
+        <div class="agent-trace" id="agent-trace">
+          <div class="trace-header" id="trace-toggle">
+            <span class="trace-icon">&#9654;</span>
+            <span class="trace-title">Agent 执行轨迹</span>
+            <span class="trace-status" id="trace-status"></span>
+          </div>
+          <div class="trace-body" id="trace-body">
+            <div class="trace-steps" id="trace-steps"></div>
+          </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="chat-input-area">
+          <div class="input-wrapper glass">
+            <textarea
+              id="user-input"
+              class="chat-input"
+              placeholder="输入运维问题，例如：检查服务器状态..."
+              rows="1"
+            ></textarea>
+            <button id="send-btn" class="send-btn" title="发送消息">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

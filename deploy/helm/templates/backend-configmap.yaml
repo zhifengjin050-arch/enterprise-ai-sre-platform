@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ai-devops-platform.fullname" . }}-backend-config
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.backend.env.ENVIRONMENT | quote }}
+  LOG_LEVEL: {{ .Values.backend.env.LOG_LEVEL | quote }}
+  LLM_PROVIDER: {{ .Values.backend.env.LLM_PROVIDER | quote }}
+  SILICONFLOW_BASE_URL: {{ .Values.backend.env.SILICONFLOW_BASE_URL | quote }}
+  LLM_MODEL: {{ .Values.backend.env.LLM_MODEL | quote }}
+  VISION_MODEL: {{ .Values.backend.env.VISION_MODEL | quote }}
+  DATABASE_URL: {{ .Values.backend.env.DATABASE_URL | quote }}
+  REDIS_URL: {{ .Values.backend.env.REDIS_URL | quote }}
+  ENABLE_MCP: {{ .Values.backend.env.ENABLE_MCP | quote }}
+  CORS_ORIGINS: {{ .Values.backend.env.CORS_ORIGINS | quote }}
+  JWT_EXPIRE_MINUTES: {{ .Values.backend.env.JWT_EXPIRE_MINUTES | quote }}

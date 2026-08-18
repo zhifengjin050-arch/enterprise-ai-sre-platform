@@ -1,0 +1,85 @@
+{
+  "incident": {
+    "id": "INC-2026-08-18-001",
+    "title": "【严重】生产环境 payment-service 大规模 502 Bad Gateway",
+    "severity": "critical",
+    "status": "firing",
+    "timestamp": "2026-08-18T09:25:00Z",
+    "detected_by": "Prometheus AlertManager / 告警规则: High5xxRate",
+    "alert_rule": "rate(http_requests_total{status=~\"5..\",service=\"payment-service\"}[5m]) / rate(http_requests_total{service=\"payment-service\"}[5m]) > 0.05",
+    "summary": "payment-service 在 09:25 起 502 错误率飙升至 23%，当前持续上升。上游 Nginx 日志显示 connect() failed (111: Connection refused)，所有 upstream 已标记为不可用。",
+    "affected_services": [
+      "payment-service (K8s Deployment, 3 Pods)",
+      "order-service (依赖支付结果回调)",
+      "notification-service (支付通知无法发送)",
+      "api-gateway (Nginx Ingress Controller)"
+    ],
+    "affected_endpoints": [
+      "POST /api/payment/charge",
+      "POST /api/payment/refund",
+      "GET /api/payment/status",
+      "GET /api/payment/balance"
+    ],
+    "affected_users": "预计影响 12,000+ 在线用户，支付功能完全不可用",
+    "environment": {
+      "cluster": "production-k8s (v1.28)",
+      "namespace": "production",
+      "region": "cn-beijing (可用区 A)",
+      "node_pool": "prod-cpu-pool (8 节点, 32C/64GB)"
+    },
+    "resources": {
+      "deployment": "payment-service (3 replicas)",
+      "configmap": "payment-service-config (v.20260815)",
+      "hpa": "payment-service-hpa (cpu: 80%, min: 3, max: 10)",
+      "service": "payment-service (ClusterIP: 10.96.0.50, port: 8080)",
+      "pdb": "payment-service-pdb (maxUnavailable: 1)"
+    },
+    "timeline": [
+      {"time": "09:20:00", "event": "数据库连接池使用率突增到 85%"},
+      {"time": "09:22:30", "event": "payment-service Pod-1 OOMKilled (exit 137)"},
+      {"time": "09:23:10", "event": "payment-service Pod-2 OOMKilled (exit 137)"},
+      {"time": "09:23:45", "event": "payment-service Pod-3 OOMKilled (exit 137)"},
+      {"time": "09:24:00", "event": "K8s 自动重启 3 个 Pod，但立即再次 OOM"},
+      {"time": "09:24:30", "event": "Nginx 将所有 payment-service upstream 标记为不可用"},
+      {"time": "09:25:00", "event": "Prometheus High5xxRate 告警触发 (severity: critical)"},
+      {"time": "09:25:10", "event": "支付网关回调超时，订单状态不一致"},
+      {"time": "09:26:00", "event": "Pod 第 5 次重启，CrashLoopBackOff，退避 300s"}
+    ],
+    "hypothesis": [
+      {
+        "id": "H1",
+        "description": "JVM 内存泄漏 — Heap 使用率持续上升直到 OOM",
+        "confidence": 0.85,
+        "evidence": ["Pod 日志: java.lang.OutOfMemoryError: Java heap space", "Heap Dump 分析: 支付请求对象占 72%"]
+      },
+      {
+        "id": "H2",
+        "description": "数据库连接泄漏 — 连接未归还导致池耗尽，请求阻塞积累",
+        "confidence": 0.78,
+        "evidence": ["日志: ConnectionPoolTimeout (active=100/100)", "泄漏检测: 12 个未归还连接", "重启后短暂恢复"]
+      },
+      {
+        "id": "H3",
+        "description": "上游支付网关响应变慢 — 超时导致线程阻塞",
+        "confidence": 0.45,
+        "evidence": ["日志: 支付网关 3 次重试均超时 (3000ms)"]
+      }
+    ],
+    "recommended_actions": [
+      {"priority": "P0", "action": "扩容: kubectl scale deployment/payment-service --replicas=5", "risk": "low"},
+      {"priority": "P0", "action": "增加 memory limits: 512Mi → 1Gi，重启所有 Pod", "risk": "low"},
+      {"priority": "P1", "action": "开启 HikariCP leak-detection-threshold: 60000ms", "risk": "low"},
+      {"priority": "P1", "action": "配置 ReadinessProbe initialDelaySeconds: 30 → 60", "risk": "low"},
+      {"priority": "P2", "action": "添加 PodDisruptionBudget minAvailable: 2", "risk": "low"},
+      {"priority": "P2", "action": "配置 HPA 基于内存指标 (averageValue: 800Mi)", "risk": "low"}
+    ],
+    "diagnosis_steps": [
+      {"step": 1, "tool": "kubectl_get_pods", "params": {"namespace": "production"}, "expected": "查看 Pod 状态, 发现 CrashLoopBackOff"},
+      {"step": 2, "tool": "kubectl_describe_pod", "params": {"pod": "payment-service-*", "namespace": "production"}, "expected": "查看 Last State: OOMKilled"},
+      {"step": 3, "tool": "kubectl_logs", "params": {"pod": "payment-service-*", "namespace": "production", "tail": 100}, "expected": "查看 Java OOM Stack Trace"},
+      {"step": 4, "tool": "kubectl_get_events", "params": {"namespace": "production"}, "expected": "查看集群事件"},
+      {"step": 5, "tool": "knowledge_search", "params": {"query": "Kubernetes OOMKilled 数据库连接池 处理"}, "expected": "检索运维手册"},
+      {"step": 6, "tool": "system_logs", "params": {"service": "nginx", "tail": 50}, "expected": "查看 Nginx 错误日志"}
+    ]
+  }
+}

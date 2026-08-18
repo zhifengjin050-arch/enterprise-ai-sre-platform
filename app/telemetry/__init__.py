@@ -1,0 +1,1 @@
+from app.telemetry.setup import setup_telemetry, tracer, get_trace_id
