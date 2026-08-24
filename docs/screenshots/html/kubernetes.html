@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8"/><title>Kubernetes</title>
+<link rel="stylesheet" href="_shell.css"/>
+</head>
+<body class="app">
+<aside>
+  <div class="logo">AI SRE<small>Infra · Kubernetes</small></div>
+  <a>Overview</a><a>Ops Agent</a><a class="active">Infra</a><a>Knowledge</a>
+</aside>
+<main>
+  <h1>Kubernetes diagnosis</h1>
+  <p class="sub">CrashLoopBackOff · OOMKilled · ImagePullBackOff · 502/503</p>
+  <div class="card">
+    <table>
+      <tr><th>Pod</th><th>Namespace</th><th>Status</th><th>Evidence</th></tr>
+      <tr><td>payment-service-7f2a</td><td>YOUR_NAMESPACE</td><td><span class="badge danger">CrashLoopBackOff</span></td><td>OOMKilled · lastRestart 12s</td></tr>
+      <tr><td>payment-service-3c91</td><td>YOUR_NAMESPACE</td><td><span class="badge warn">Running</span></td><td>restarts=4 · memory 98%</td></tr>
+      <tr><td>nginx-ingress-2b10</td><td>ingress</td><td><span class="badge">Ready</span></td><td>upstream timeout to payment</td></tr>
+    </table>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <strong>Suggested next tools</strong>
+    <p class="sub" style="margin-bottom:0">k8s_logs · k8s_get_deployments · RAG: Kubernetes 生产运维手册</p>
+  </div>
+  <p class="preview">Product preview — YOUR_CLUSTER / YOUR_NAMESPACE placeholders, not a live cluster dump.</p>
+</main>
+</body></html>

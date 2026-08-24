@@ -130,14 +130,10 @@ git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
 cd enterprise-ai-sre-platform
 cp .env.example .env
 # set SILICONFLOW_API_KEY (or compatible LLM key)
-docker compose up -d
+./scripts/demo_start.sh          # Windows: .\scripts\demo_start.ps1
 ```
 
-Open http://localhost and register. Import demo knowledge:
-
-```bash
-python demo/import_demo_data.py
-```
+Open http://localhost ，账号 `demo_admin` / `Demo@2026!`。详情见 [demo/README.md](demo/README.md)。
 
 Local backend: `uvicorn app.main:app --reload --port 8000`  
 Local frontend: `cd frontend && npm install && npm run dev`

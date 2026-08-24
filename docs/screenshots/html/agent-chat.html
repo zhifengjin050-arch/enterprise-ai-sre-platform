@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8"/><title>Agent</title>
+<link rel="stylesheet" href="_shell.css"/>
+</head>
+<body class="app">
+<aside>
+  <div class="logo">AI SRE<small>LangGraph · SSE</small></div>
+  <a>Overview</a><a class="active">Ops Agent</a><a>Infra</a><a>Knowledge</a><a>Traces</a>
+</aside>
+<main>
+  <h1>Ops Agent</h1>
+  <p class="sub">START → planner → tools → RAG → Incident Report</p>
+  <div class="chat">
+    <div class="bubble user"><strong>SRE</strong><br/>生产环境 payment-service 出现大量 502，请分析原因</div>
+    <div class="bubble bot">
+      <strong>SRE Agent</strong>
+      <p>Planner 已调用 k8s_get_pods / k8s_logs，并结合 RAG 运维手册。证据指向 OOMKilled 后 Nginx upstream 连接失败。</p>
+      <p class="cite">工具 · k8s_get_pods { namespace: "YOUR_NAMESPACE" } → CrashLoopBackOff</p>
+      <p class="cite">引用 · Kubernetes 生产运维手册（score 0.91）</p>
+      <p class="cite">报告 · Incident Report · 风险 严重 · 建议核对 memory limit / HPA</p>
+    </div>
+  </div>
+  <p class="preview">Product preview — sample CloudShop demo run, no live kubeconfig.</p>
+</main>
+</body></html>
