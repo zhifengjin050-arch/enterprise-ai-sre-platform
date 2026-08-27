@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as SASession
 
+from app.config import settings
 from app.database.session import get_db
 from app.database.models import User
 from app.auth.jwt import create_access_token
@@ -58,7 +59,14 @@ async def register(req: RegisterRequest, db: SASession = Depends(get_db)):
     """用户注册
 
     创建新用户，密码使用 bcrypt 加密存储。
+    生产环境默认关闭公开注册（ALLOW_REGISTER=false）。
     """
+    if settings.is_production() and not settings.allow_register:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="生产环境已关闭公开注册",
+        )
+
     # 检查用户名是否已存在
     existing = db.query(User).filter(
         (User.username == req.username) | (User.email == req.email)

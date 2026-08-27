@@ -5,8 +5,11 @@
 
 import pytest
 import time
+import uuid
 from datetime import timedelta, timezone
 from fastapi.testclient import TestClient
+from starlette.testclient import WebSocketDenialResponse
+from starlette.websockets import WebSocketDisconnect
 from app.main import app
 from app.auth.jwt import create_access_token, decode_access_token
 from app.auth.password import hash_password, verify_password
@@ -168,11 +171,11 @@ class TestRBACSecurity:
         assert token_a is not None
         assert token_b is not None
 
-        # 用户 A 创建服务器
+        name_a = f"isol-test-svr-{uuid.uuid4().hex[:8]}"
         resp = client.post(
             "/api/servers",
             headers={"Authorization": f"Bearer {token_a}"},
-            json={"name": "isol-test-svr", "host": "10.0.0.1",
+            json={"name": name_a, "host": "10.0.0.1",
                   "port": 22, "username": "root",
                   "auth_credential": "test-password"}
         )
@@ -185,18 +188,18 @@ class TestRBACSecurity:
         )
         assert resp_b.status_code == 200
         names = [s.get("name") for s in resp_b.json()]
-        assert "isol-test-svr" not in names
+        assert name_a not in names
 
     def test_user_cannot_delete_other_user_server(self):
         """用户 A 不能删除用户 B 的服务器"""
         token_a = _create_test_user("sec_del_a")
         token_b = _create_test_user("sec_del_b")
 
-        # 用户 A 创建服务器
+        name_a = f"del-test-svr-{uuid.uuid4().hex[:8]}"
         resp = client.post(
             "/api/servers",
             headers={"Authorization": f"Bearer {token_a}"},
-            json={"name": "del-test-svr", "host": "10.0.0.2",
+            json={"name": name_a, "host": "10.0.0.2",
                   "port": 22, "username": "root",
                   "auth_credential": "test-password"}
         )
@@ -218,11 +221,69 @@ class TestRBACSecurity:
         assert client.get("/api/conversations").status_code == 401
         # /api/monitoring/current
         assert client.get("/api/monitoring/current").status_code == 401
+        # /api/server/status
+        assert client.get("/api/server/status").status_code == 401
 
     def test_chat_works_without_auth(self):
-        """聊天接口允许未认证访问（但不会创建会话）"""
+        """开发环境聊天接口允许未认证访问（不会创建会话）"""
         resp = client.post("/api/chat", json={"message": "ping"})
         assert resp.status_code == 200
+
+    def test_chat_requires_auth_in_production(self, monkeypatch):
+        """生产环境聊天接口必须登录"""
+        monkeypatch.setattr(settings, "environment", "production")
+        resp = client.post("/api/chat", json={"message": "ping"})
+        assert resp.status_code == 401
+        resp_stream = client.post("/api/chat/stream", json={"message": "ping"})
+        assert resp_stream.status_code == 401
+
+    def test_server_status_with_auth(self):
+        token = _create_test_user(f"status_{uuid.uuid4().hex[:8]}")
+        resp = client.get(
+            "/api/server/status",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert "cpu" in resp.json()
+
+
+# ============================================================
+# WebSocket 鉴权
+# ============================================================
+
+class TestWebSocketAuth:
+    def _assert_ws_rejected(self, path: str) -> None:
+        try:
+            with client.websocket_connect(path) as ws:
+                ws.receive_text()
+            pytest.fail(f"WebSocket 应被拒绝: {path}")
+        except (WebSocketDisconnect, WebSocketDenialResponse):
+            return
+        except BaseExceptionGroup as eg:
+            if any(isinstance(e, (WebSocketDisconnect, WebSocketDenialResponse)) for e in eg.exceptions):
+                return
+            raise
+
+    def test_ws_rejects_anonymous(self):
+        self._assert_ws_rejected("/ws/chat/1")
+
+    def test_ws_accepts_valid_token(self):
+        token = _create_test_user(f"ws_ok_{uuid.uuid4().hex[:8]}")
+        assert token
+        with client.websocket_connect(f"/ws/chat/0?token={token}"):
+            pass
+
+    def test_ws_rejects_foreign_conversation(self):
+        token_a = _create_test_user(f"ws_a_{uuid.uuid4().hex[:8]}")
+        token_b = _create_test_user(f"ws_b_{uuid.uuid4().hex[:8]}")
+        conv = client.post(
+            "/api/conversations",
+            json={"title": "ws-iso"},
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert conv.status_code == 200
+        cid = conv.json()["id"]
+        self._assert_ws_rejected(f"/ws/chat/{cid}?token={token_b}")
 
 
 # ============================================================
@@ -307,7 +368,8 @@ class TestInputValidation:
         """服务器名中的合法特殊字符应被接受"""
         token = _create_test_user("sec_svr_nm")
         assert token is not None
-        names = ["normal-server", "server-with-dashes", "server_123"]
+        suffix = uuid.uuid4().hex[:6]
+        names = [f"normal-server-{suffix}", f"server-with-dashes-{suffix}", f"server_123_{suffix}"]
         for name in names:
             resp = client.post(
                 "/api/servers",
@@ -316,7 +378,7 @@ class TestInputValidation:
                       "port": 22, "username": "root",
                       "auth_credential": "test-password"}
             )
-            assert resp.status_code == 200, f"创建服务器 '{name}' 失败"
+            assert resp.status_code == 200, f"创建服务器 '{name}' 失败: {resp.status_code} {resp.text}"
 
     def test_register_valid_user_succeeds(self):
         """合法注册应成功"""
@@ -331,6 +393,19 @@ class TestInputValidation:
             }
         )
         assert resp.status_code == 201
+
+    def test_register_disabled_in_production(self, monkeypatch):
+        monkeypatch.setattr(settings, "environment", "production")
+        monkeypatch.setattr(settings, "allow_register", False)
+        resp = client.post(
+            "/api/auth/register",
+            json={
+                "username": f"prod_reg_{uuid.uuid4().hex[:8]}",
+                "email": f"prod_reg_{uuid.uuid4().hex[:8]}@test.com",
+                "password": "ValidPass123!",
+            },
+        )
+        assert resp.status_code == 403
 
 
 # ============================================================

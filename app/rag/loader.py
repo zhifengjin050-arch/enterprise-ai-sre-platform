@@ -5,7 +5,7 @@
 
 import os
 import logging
-from typing import List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

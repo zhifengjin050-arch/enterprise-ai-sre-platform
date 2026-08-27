@@ -71,9 +71,14 @@ async def list_members(
     members = db.query(OrganizationMember).filter(
         OrganizationMember.organization_id == current_user.organization_id
     ).all()
+    user_ids = [m.user_id for m in members]
+    users = {
+        u.id: u
+        for u in db.query(User).filter(User.id.in_(user_ids)).all()
+    } if user_ids else {}
     result = []
     for m in members:
-        user = db.query(User).filter(User.id == m.user_id).first()
+        user = users.get(m.user_id)
         if user:
             result.append({
                 "user_id": user.id, "username": user.username,

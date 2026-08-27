@@ -60,7 +60,7 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check app/ tests/ scripts/ --ignore=E501,F401
+          ruff check app/ tests/ scripts/
 
       - name: Type check with mypy
         run: |
@@ -76,8 +76,7 @@ jobs:
           KUBERNETES_ENABLED: "false"
           SSH_TIMEOUT: "5"
         run: |
-          python -m pytest tests/ -v --tb=short --ignore=tests/test_e2e_ok.py -x || \
-          python -m pytest tests/test_tools.py tests/test_auth.py tests/test_database.py tests/test_k8s_tools.py tests/test_docker_deploy.py tests/test_monitoring.py tests/test_alert.py tests/test_monitoring_api.py tests/test_business_scenarios.py -v --tb=short
+          python -m pytest tests/ -v --tb=short --ignore=tests/test_e2e_ok.py
 
       - name: Upload test report
         if: always()
@@ -111,9 +110,8 @@ jobs:
         working-directory: frontend
 
       - name: Lint
-        run: npm run lint 2>&1 || echo "Lint warnings found (non-blocking)"
+        run: npm run lint
         working-directory: frontend
-        continue-on-error: true
 
       - name: Run tests
         run: npm test

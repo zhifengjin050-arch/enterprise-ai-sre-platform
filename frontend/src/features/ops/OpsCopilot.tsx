@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Plus, Send, GitBranch, Trash2, Download, FileJson } from 'lucide-react'
-import api from '../../api/client'
+import { Plus, Send, GitBranch, Trash2, Download, FileJson, Square } from 'lucide-react'
+import api, { apiErrorMessage } from '../../api/client'
 import { streamChat, StreamEvent } from '../../api/stream'
 import { useAuth } from '../../store/auth'
 import { usePrefs } from '../../store/prefs'
@@ -89,13 +89,18 @@ export default function OpsCopilot() {
   const [loading, setLoading] = useState(false)
   const [live, setLive] = useState<LiveStep[]>([])
   const [approvalToken, setApprovalToken] = useState('')
+  const [convError, setConvError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const loadConversations = () => {
     api
       .get('/conversations')
-      .then((r) => setConversations(Array.isArray(r.data) ? r.data : []))
-      .catch(() => {})
+      .then((r) => {
+        setConversations(Array.isArray(r.data) ? r.data : [])
+        setConvError('')
+      })
+      .catch((err) => setConvError(apiErrorMessage(err, t('ops.convLoadFail'))))
   }
 
   useEffect(() => {
@@ -150,8 +155,8 @@ export default function OpsCopilot() {
       await api.delete(`/conversations/${c.id}`)
       setConversations((prev) => prev.filter((x) => x.id !== c.id))
       if (activeId === c.id) newChat()
-    } catch {
-      /* ignore */
+    } catch (err) {
+      setConvError(apiErrorMessage(err, t('ops.deleteFail')))
     }
   }
 
@@ -219,11 +224,15 @@ export default function OpsCopilot() {
     setLoading(true)
     setLive([])
     setMessages((prev) => [...prev, { role: 'user', content: msg }])
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
     try {
       const complete = await streamChat(
         { message: msg, session_id: activeId ? String(activeId) : 'web-console', conversation_id: activeId || undefined },
         applyEvent,
         token,
+        ac.signal,
       )
       const report =
         complete.report ||
@@ -234,7 +243,11 @@ export default function OpsCopilot() {
         setActiveId(complete.conversation_id)
         loadConversations()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setMessages((prev) => [...prev, { role: 'assistant', content: t('ops.stopped') }])
+        return
+      }
       try {
         const res = await api.post('/chat', {
           message: msg,
@@ -243,15 +256,26 @@ export default function OpsCopilot() {
         })
         setMessages((prev) => [...prev, { role: 'assistant', content: res.data.report }])
         if (res.data.conversation_id) setActiveId(res.data.conversation_id)
-      } catch (e: any) {
+      } catch (e: unknown) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: `${t('ops.errorPrefix')}: ${e.response?.data?.detail || err.message || t('ops.failed')}` },
+          { role: 'assistant', content: `${t('ops.errorPrefix')}: ${apiErrorMessage(e, apiErrorMessage(err, t('ops.failed')))}` },
         ])
       }
     } finally {
+      if (abortRef.current === ac) abortRef.current = null
       setLoading(false)
     }
+  }
+
+  const stop = () => {
+    abortRef.current?.abort()
+  }
+
+  const onInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing || e.key !== 'Enter' || e.shiftKey) return
+    e.preventDefault()
+    void send()
   }
 
   const approve = async (ok: boolean) => {
@@ -281,6 +305,7 @@ export default function OpsCopilot() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {convError && <p className="px-3 py-2 text-[11px] text-danger">{convError}</p>}
           {conversations.map((c) => (
             <div
               key={c.id}
@@ -358,13 +383,20 @@ export default function OpsCopilot() {
             placeholder={t('ops.inputPh')}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && send()}
+            onKeyDown={onInputKeyDown}
             disabled={loading}
           />
-          <button className="btn-primary inline-flex items-center gap-1.5" onClick={send} disabled={loading}>
-            <Send size={14} />
-            {loading ? t('ops.running') : t('ops.send')}
-          </button>
+          {loading ? (
+            <button className="btn-secondary inline-flex items-center gap-1.5" onClick={stop} type="button">
+              <Square size={14} />
+              {t('ops.stop')}
+            </button>
+          ) : (
+            <button className="btn-primary inline-flex items-center gap-1.5" onClick={send} disabled={!input.trim()}>
+              <Send size={14} />
+              {t('ops.send')}
+            </button>
+          )}
         </div>
       </section>
 

@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import { createWrapper, mockUser } from '../test-utils'
 
 // Mock WebSocket
 class MockWebSocket {
   onopen: (() => void) | null = null
   onclose: (() => void) | null = null
-  onmessage: ((event: any) => void) | null = null
+  onmessage: ((event: { data: string }) => void) | null = null
   onerror: (() => void) | null = null
   readyState: number = 0
   url: string

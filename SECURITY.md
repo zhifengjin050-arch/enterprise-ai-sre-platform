@@ -23,6 +23,10 @@ We will acknowledge the report and work on a fix before any public disclosure.
 
 ## Secrets and credentials
 
+SSH 托管服务器的密码/私钥、以及知识源连接器配置，均使用由 `JWT_SECRET` 派生的 Fernet 密钥加密后写入数据库。更换 `JWT_SECRET` 后旧密文将无法解密，需要重新保存凭据。
+
+历史遗留的 SSH 明文凭据在读取时仍可兼容，但新写入一律加密。API 响应永不回传 `auth_credential`。
+
 Never commit:
 
 - `.env` files with real keys

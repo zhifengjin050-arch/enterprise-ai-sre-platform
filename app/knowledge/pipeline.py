@@ -76,7 +76,6 @@ def run_sync_task(task_id: int) -> dict[str, Any]:
             _log(db, task.id, "warning", f"已达单源文档上限 {MAX_DOCS_PER_SOURCE}，其余节点未同步")
 
         seen_ids: set[str] = set()
-        created_by = source.created_by or 0
         for remote in batch.docs:
             seen_ids.add(remote.external_id)
             stats["fetched"] += 1

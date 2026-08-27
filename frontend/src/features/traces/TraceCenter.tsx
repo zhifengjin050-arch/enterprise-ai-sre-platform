@@ -77,7 +77,6 @@ export default function TraceCenter() {
 
   useEffect(() => {
     if (params.get('cid')) load(params.get('cid')!)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const convTitle = useMemo(() => {

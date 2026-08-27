@@ -4,12 +4,10 @@
 """
 
 import logging
-import datetime
 import json
 
-from app.database.database import engine, Base
 from app.database.session import get_local_session
-from app.database.models import AlertRecord, AlertLevel, AlertStatus, AgentExecution, ExecutionStatus, User, Conversation, Message
+from app.database.models import AlertRecord, AlertLevel, AlertStatus, AgentExecution, ExecutionStatus, User, Conversation
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +84,14 @@ def create_demo_history(admin_user=None, db_session=None) -> list:
 
         # 创建历史告警
         for inc in DEMO_INCIDENTS:
+            existing_alert = db.query(AlertRecord).filter(
+                AlertRecord.source == "demo",
+                AlertRecord.title == inc["title"],
+            ).first()
+            if existing_alert:
+                created_items.append(existing_alert)
+                logger.info("Demo 事件已存在，跳过: %s", inc["title"])
+                continue
             alert = AlertRecord(
                 level=AlertLevel(inc["level"]),
                 title=inc["title"],
@@ -144,7 +150,7 @@ if __name__ == "__main__":
     print(f"\n[OK] 成功创建 {len(alerts)} 条历史事件：")
     for a in alerts:
         print(f"   [{a.level.value.upper()}] {a.title}")
-    print(f"\n事件统计：")
+    print("\n事件统计：")
     print(f"   - 严重: {sum(1 for a in alerts if a.level == AlertLevel.critical)}")
     print(f"   - 警告: {sum(1 for a in alerts if a.level == AlertLevel.warning)}")
     print(f"   - 已解决: {sum(1 for a in alerts if a.status == AlertStatus.resolved)}")

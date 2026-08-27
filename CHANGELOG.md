@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [v3.3.0] hardening
+
+- SSH 托管凭据 Fernet 加密落库（兼容历史明文读取）
+- WebSocket `/ws/chat/{id}` 要求 JWT，并校验会话归属；错误不再回传 traceback
+- `GET /api/server/status` 需要登录；生产环境 `/api/chat` 与 `/api/chat/stream` 必须登录
+- RAG 文档表述与实现对齐：JSON embedding + 应用层余弦相似度（未启用 pgvector 扩展）
+- 修复审批令牌绑定提出者，禁止一句「确认」误批他人操作
+- SSE Agent 工作线程使用独立数据库会话
+- 生产环境默认关闭公开注册与 OpenAPI UI；`/metrics` 可配置 `METRICS_TOKEN`
+- Redis 生产 healthcheck 带密码；Embedding / SSH 连接缓存设上限
+- Redis 可用时跨进程限流，不可用回退内存限流；告警列表设上限
+- 生产 Helm 关闭公开注册；健康检查如实反映 LLM / 采集线程状态
+- 前端补齐 ESLint 10 flat config，CI lint 作为真实门槛（允许少量 any 警告）
+
 ## [v3.3.0] - 2026-08-18 — Enterprise Knowledge Hub
 
 ### Added

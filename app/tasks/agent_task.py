@@ -1,7 +1,5 @@
 """Background Agent execution using RQ"""
 from __future__ import annotations
-import os
-import json
 import logging
 from redis import Redis
 from rq import Queue
@@ -41,7 +39,6 @@ def enqueue_agent(message: str, stream_id: str = "", user_id: int = None,
 def get_job_status(job_id: str) -> dict:
     """Get job status and result"""
     try:
-        queue = _get_queue()
         job = Job.fetch(job_id, connection=_redis_conn)
         status = "queued" if job.is_queued else \
                  "started" if job.is_started else \
@@ -97,12 +94,12 @@ def _execute_agent(message: str, stream_id: str = "", user_id: int = None,
             "duration": round(duration, 2),
         }
     except Exception as e:
-        import traceback
+        logger.exception("后台 Agent 任务失败")
         return {
-            "report": f"## Agent Error\n\n```\n{traceback.format_exc()}\n```",
+            "report": "Agent 执行失败，请稍后重试。",
             "trace": [],
             "duration": 0,
-            "error": str(e),
+            "error": str(e)[:200],
         }
     finally:
         if db:

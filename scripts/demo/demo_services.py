@@ -5,7 +5,6 @@
 """
 
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -197,4 +196,4 @@ if __name__ == "__main__":
     for p in SIMULATED_K8S_PODS:
         print(f"   - {p['name']} ({p['status']})")
 
-    print(f"\n[OK] Demo 业务数据加载完成")
+    print("\n[OK] Demo 业务数据加载完成")

@@ -118,7 +118,7 @@ def test_jwt_login():
                                   {"username": "admin", "password": "admin123"}, timeout=5)
     assert code == 200, f"Login failed: {code}"
     _test_token = data.get("access_token", "")
-    assert _test_token, f"No access_token in response"
+    assert _test_token, "No access_token in response"
     print(f"    Token: {_test_token[:20]}...")
 
 
@@ -270,7 +270,7 @@ def generate_report(total, passed, failed, score):
         "# Final Acceptance Report",
         "",
         f"> Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        f"> Mode: Automated Black-box Acceptance",
+        "> Mode: Automated Black-box Acceptance",
         "",
         "---",
         "",
@@ -301,8 +301,8 @@ def generate_report(total, passed, failed, score):
         "",
         "## 2. Test Results",
         "",
-        f"| Metric | Value |",
-        f"|--------|-------|",
+        "| Metric | Value |",
+        "|--------|-------|",
         f"| Total | **{total}** |",
         f"| Passed | **{passed}** |",
         f"| Failed | **{failed}** |",
@@ -330,8 +330,8 @@ def generate_report(total, passed, failed, score):
     lines += [
         "## 3. Feature Verification",
         "",
-        f"| Feature | Status |",
-        f"|---------|--------|",
+        "| Feature | Status |",
+        "|---------|--------|",
     ]
     feature_map = {
         "Streaming: SSE": RESULTS.get("SSE Streaming", False),

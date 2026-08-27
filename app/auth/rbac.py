@@ -1,7 +1,7 @@
 """RBAC Service — Multi-tenant permission management"""
 from __future__ import annotations
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session as SASession
 from app.database.models import User, Organization, OrganizationMember, OrganizationRole
 from app.auth.dependencies import get_current_user

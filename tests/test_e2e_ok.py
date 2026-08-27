@@ -1,14 +1,30 @@
 """端到端验证: TestClient 模拟 FastAPI + 前端 + Agent"""
 
-import sys, io, os
+import sys
+import io
+import os
 os.chdir(r"D:\代码项目\AI Agent项目\项目1：AI DevOps Assistant 在线版")
 sys.path.insert(0, os.getcwd())
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
+from app.config import APP_VERSION
 from app.main import app
 from fastapi.testclient import TestClient
 
 client = TestClient(app)
+
+_reg = client.post("/api/auth/register", json={
+    "username": "e2e_test_user",
+    "email": "e2e@test.com",
+    "password": "testpass123",
+})
+_login = client.post("/api/auth/login", json={
+    "username": "e2e_test_user",
+    "password": "testpass123",
+})
+_auth = {}
+if _login.status_code == 200:
+    _auth = {"Authorization": f"Bearer {_login.json().get('access_token', '')}"}
 
 print("=" * 70)
 print("  AI 智能运维助手 — E2E 测试 v1.1")
@@ -26,7 +42,7 @@ print(f"[OK] GET /health → {data['status']} v{data['version']}")
 print(f"     Services: {data['services']}")
 
 # Test 2: Server status
-resp = client.get("/api/server/status")
+resp = client.get("/api/server/status", headers=_auth)
 assert resp.status_code == 200
 data = resp.json()
 assert "cpu" in data
@@ -80,11 +96,11 @@ print("[OK] GET /non-existent → 404")
 # Test 10: Health check version
 resp = client.get("/health")
 data = resp.json()
-assert data["version"] == "1.3.0"
+assert data["version"] == APP_VERSION
 print(f"[OK] GET /health version → {data['version']}")
 
 # Test 11: Server status structure
-resp = client.get("/api/server/status")
+resp = client.get("/api/server/status", headers=_auth)
 data = resp.json()
 assert isinstance(data.get("disks", []), list)
 assert isinstance(data.get("cpu", {}), dict)
@@ -120,7 +136,7 @@ print(f"[OK] GET /api/auth/me → {data['username']} role={data['role']}")
 # Test 15: Auth me without token
 resp = client.get("/api/auth/me")
 assert resp.status_code == 401
-print(f"[OK] GET /api/auth/me (no token) → 401")
+print("[OK] GET /api/auth/me (no token) → 401")
 
 # Test 16: Create conversation
 resp = client.post("/api/conversations", json={"title": "E2E Test"}, headers={"Authorization": f"Bearer {token}"})
@@ -223,7 +239,7 @@ print(f"[OK] GET /api/servers/{server_id} after delete → 404")
 # Test 28: Server management - unauthorized
 resp = client.get("/api/servers")
 assert resp.status_code == 401
-print(f"[OK] GET /api/servers (no auth) → 401")
+print("[OK] GET /api/servers (no auth) → 401")
 
 # Test 29: Server management - duplicate name
 client.post("/api/servers", json={
@@ -243,7 +259,7 @@ resp = client.post("/api/servers", json={
     "auth_credential": "pw",
 }, headers={"Authorization": f"Bearer {token}"})
 assert resp.status_code == 409
-print(f"[OK] POST /api/servers (duplicate name) → 409")
+print("[OK] POST /api/servers (duplicate name) → 409")
 
 # Test 30: Health shows servers_managed
 resp = client.get("/health")

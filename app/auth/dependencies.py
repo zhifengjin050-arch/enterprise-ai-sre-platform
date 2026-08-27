@@ -174,3 +174,18 @@ async def get_optional_user(
         return await get_current_user(credentials, db)
     except HTTPException:
         return None
+
+
+async def get_chat_user(
+    current_user: Optional[User] = Depends(get_optional_user),
+) -> Optional[User]:
+    """对话接口鉴权：开发环境允许匿名；生产环境必须登录。"""
+    from app.config import settings
+
+    if settings.is_production() and current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证凭证",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return current_user

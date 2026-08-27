@@ -11,12 +11,6 @@
 - 角色权限
 - 数据隔离
 """
-
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from app.main import app
 from fastapi.testclient import TestClient
 from app.database.session import init_db, get_local_session
@@ -73,7 +67,7 @@ def test_register_duplicate():
         "password": "password123",
     })
     assert resp.status_code == 409, f"重复注册应返回409, 实际: {resp.status_code}"
-    print(f"[OK] test_register_duplicate — 409 Conflict")
+    print("[OK] test_register_duplicate — 409 Conflict")
 
 
 def test_login_success():
@@ -104,7 +98,7 @@ def test_login_wrong_password():
         "password": "wrongpassword",
     })
     assert resp.status_code == 401, f"错误密码应返回401, 实际: {resp.status_code}"
-    print(f"[OK] test_login_wrong_password — 401 Unauthorized")
+    print("[OK] test_login_wrong_password — 401 Unauthorized")
 
 
 def test_login_nonexistent_user():
@@ -114,7 +108,7 @@ def test_login_nonexistent_user():
         "password": "password123",
     })
     assert resp.status_code == 401, f"不存在用户应返回401, 实际: {resp.status_code}"
-    print(f"[OK] test_login_nonexistent_user — 401 Unauthorized")
+    print("[OK] test_login_nonexistent_user — 401 Unauthorized")
 
 
 def test_me_with_token():
@@ -140,14 +134,14 @@ def test_me_without_token():
     """测试7: 无Token访问 /api/auth/me 应返回401"""
     resp = client.get("/api/auth/me")
     assert resp.status_code == 401, f"无Token应返回401, 实际: {resp.status_code}"
-    print(f"[OK] test_me_without_token — 401 Unauthorized")
+    print("[OK] test_me_without_token — 401 Unauthorized")
 
 
 def test_me_invalid_token():
     """测试8: 无效Token应返回401"""
     resp = client.get("/api/auth/me", headers={"Authorization": "Bearer invalid_token_here"})
     assert resp.status_code == 401, f"无效Token应返回401, 实际: {resp.status_code}"
-    print(f"[OK] test_me_invalid_token — 401 Unauthorized")
+    print("[OK] test_me_invalid_token — 401 Unauthorized")
 
 
 def test_register_validation():
@@ -167,7 +161,7 @@ def test_register_validation():
         "password": "password123",
     })
     assert resp.status_code == 422, f"短用户名应返回422, 实际: {resp.status_code}"
-    print(f"[OK] test_register_validation — 422 参数校验")
+    print("[OK] test_register_validation — 422 参数校验")
 
 
 def test_health_with_database():
@@ -199,5 +193,5 @@ if __name__ == "__main__":
     test_health_with_database()
 
     print("=" * 60)
-    print(f"  全部 10 项认证测试通过！")
+    print("  全部 10 项认证测试通过！")
     print("=" * 60)

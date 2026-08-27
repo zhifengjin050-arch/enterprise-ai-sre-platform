@@ -26,7 +26,9 @@ def _sqlite_upgrade_columns() -> None:
     tables = set(inspector.get_table_names())
     with engine.begin() as conn:
         if "users" in tables:
-            cols = {c["name"] for c in inspector.get_columns("users")}
+            user_cols = {c["name"] for c in inspector.get_columns("users")}
+            if "organization_id" not in user_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN organization_id INTEGER"))
         if "knowledge_documents" in tables:
             cols = {c["name"] for c in inspector.get_columns("knowledge_documents")}
             extras = [

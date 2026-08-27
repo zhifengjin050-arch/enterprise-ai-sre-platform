@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 from typing import Optional
 
@@ -16,6 +17,30 @@ logger = logging.getLogger("agent.approval")
 
 # 内存审批存储 (token -> pending action)
 _pending_approvals: dict[str, dict] = {}
+_APPROVAL_TTL_SEC = 3600
+_APPROVAL_MAX = 200
+
+
+def _prune_approvals(now: float | None = None) -> None:
+    ts = now if now is not None else time.time()
+    expired = [
+        token for token, pending in _pending_approvals.items()
+        if ts - float(pending.get("created_at") or 0) > _APPROVAL_TTL_SEC
+    ]
+    for token in expired:
+        _pending_approvals.pop(token, None)
+    while len(_pending_approvals) > _APPROVAL_MAX:
+        oldest = next(iter(_pending_approvals))
+        _pending_approvals.pop(oldest, None)
+
+
+def _owned_by(pending: dict, user_id: int | None) -> bool:
+    owner = pending.get("user_id")
+    if owner is None:
+        return True
+    if user_id is None:
+        return False
+    return int(owner) == int(user_id)
 
 
 class RepairAction:
@@ -84,25 +109,30 @@ def classify_tool(tool_name: str) -> str:
     return "unknown"
 
 
-def create_approval(action: RepairAction) -> str:
-    """为修复动作创建审批令牌"""
-    token = str(uuid.uuid4())[:12]
+def create_approval(action: RepairAction, user_id: int | None = None) -> str:
+    """为修复动作创建审批令牌。user_id 非空时仅该用户可批准。"""
+    _prune_approvals()
+    token = uuid.uuid4().hex[:12]
     _pending_approvals[token] = {
         "action": action,
         "status": "pending",
+        "user_id": user_id,
+        "created_at": time.time(),
     }
     return token
 
 
 def get_pending_approval(token: str) -> Optional[dict]:
     """根据令牌获取待审批动作"""
+    _prune_approvals()
     return _pending_approvals.get(token)
 
 
-def approve_action(token: str) -> bool:
-    """批准一个待审批动作"""
+def approve_action(token: str, user_id: int | None = None) -> bool:
+    """批准一个待审批动作。绑定了 user_id 的令牌必须由同一用户批准。"""
+    _prune_approvals()
     pending = _pending_approvals.get(token)
-    if pending and pending["status"] == "pending":
+    if pending and pending["status"] == "pending" and _owned_by(pending, user_id):
         pending["status"] = "approved"
         _pending_approvals[token] = pending
         logger.info("Action approved: token=%s", token)
@@ -110,10 +140,11 @@ def approve_action(token: str) -> bool:
     return False
 
 
-def reject_action(token: str) -> bool:
-    """拒绝一个待审批动作"""
+def reject_action(token: str, user_id: int | None = None) -> bool:
+    """拒绝一个待审批动作。绑定了 user_id 的令牌必须由同一用户拒绝。"""
+    _prune_approvals()
     pending = _pending_approvals.get(token)
-    if pending and pending["status"] == "pending":
+    if pending and pending["status"] == "pending" and _owned_by(pending, user_id):
         pending["status"] = "rejected"
         _pending_approvals[token] = pending
         logger.info("Action rejected: token=%s", token)
@@ -190,7 +221,11 @@ def execute_approved_action(token: str, db=None) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def format_repair_proposal(repair_actions: list[RepairAction], conversation_id: int = None) -> str:
+def format_repair_proposal(
+    repair_actions: list[RepairAction],
+    conversation_id: int = None,
+    user_id: int | None = None,
+) -> str:
     """格式化修复方案为 Markdown 输出"""
     lines = [
         "## ⚡ AI 自动修复方案",
@@ -206,7 +241,7 @@ def format_repair_proposal(repair_actions: list[RepairAction], conversation_id: 
     lines.append("")
     for action in repair_actions:
         if action.requires_approval:
-            token = create_approval(action)
+            token = create_approval(action, user_id=user_id)
             lines.append(f"> 在对话中输入以下内容确认执行 **{action.description}**：")
             lines.append(">")
             lines.append(f"> `确认修复 {token}`")
@@ -217,18 +252,19 @@ def format_repair_proposal(repair_actions: list[RepairAction], conversation_id: 
     return "\n".join(lines)
 
 
-def parse_approval_response(user_message: str) -> Optional[str]:
+def parse_approval_response(user_message: str, user_id: int | None = None) -> Optional[str]:
     """解析用户消息中的审批确认指令。
-    返回审批令牌，如果未确认则返回 None。
+
+    只接受显式 ``确认修复 <token>``，避免一句「确认」误批他人令牌。
     """
     import re
     match = re.search(r"确认修复\s+([a-f0-9]{12})", user_message)
-    if match:
-        return match.group(1)
-    # 也支持简单的 "yes" / "确认" 回复
-    if user_message.strip() in ("确认", "确认执行", "yes", "y", "同意", "批准"):
-        # 返回第一个待审批的令牌
-        for token, pending in _pending_approvals.items():
-            if pending["status"] == "pending":
-                return token
-    return None
+    if not match:
+        return None
+    token = match.group(1)
+    pending = _pending_approvals.get(token)
+    if pending is None:
+        return token
+    if not _owned_by(pending, user_id):
+        return None
+    return token

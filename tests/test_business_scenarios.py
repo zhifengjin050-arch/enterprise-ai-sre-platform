@@ -20,6 +20,31 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _ensure_demo_data() -> None:
+    """业务场景测试依赖 CloudShop Demo 数据；缺失时自动种子。"""
+    from app.database.session import get_local_session, init_db
+    from app.database.models import User, ManagedServer, AlertRecord
+
+    init_db()
+    db = get_local_session()
+    try:
+        admin = db.query(User).filter(User.username == "cloudshop_admin").first()
+        demo_servers = db.query(ManagedServer).filter(
+            ManagedServer.name.in_(["prod-web-01", "prod-web-02", "prod-db-01", "prod-cache-01"])
+        ).count()
+        demo_alerts = db.query(AlertRecord).filter(AlertRecord.source == "demo").count()
+        need = admin is None or demo_servers < 4 or demo_alerts < 4
+    finally:
+        db.close()
+
+    if need:
+        from scripts.demo.init_all import init_all
+        init_all()
+
+
+_ensure_demo_data()
+
+
 # ============================================================
 # 场景组1：生产服务器巡检
 # ============================================================
@@ -198,7 +223,7 @@ class TestIncidentAnalysis:
             assert analysis["warning"] >= 1
             assert analysis["resolution_rate"] >= 50
 
-            print(f"[OK] 事件严重度分析:")
+            print("[OK] 事件严重度分析:")
             print(f"   总事件: {analysis['total_incidents']} | 严重: {analysis['critical']} | 警告: {analysis['warning']}")
             print(f"   解决率: {analysis['resolution_rate']:.0f}%")
         finally:
@@ -228,7 +253,7 @@ class TestIncidentAnalysis:
             assert "recommendation" in trend_analysis
             assert len(trend_analysis["recommendation"]) > 10
 
-            print(f"[OK] 事件趋势分析:")
+            print("[OK] 事件趋势分析:")
             print(f"   周期: {trend_analysis['period']}")
             print(f"   趋势: {trend_analysis['trend']}")
             print(f"   建议: {trend_analysis['recommendation']}")

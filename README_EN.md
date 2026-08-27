@@ -38,7 +38,7 @@ Repo: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/enterpr
 
 - Stateful Agent graph: `START → agent → tools → agent → END`
 - MCP discovery for System / Docker / Kubernetes / SSH
-- pgvector RAG scoped by `organization_id`
+- cosine RAG scoped by `organization_id`
 - CrashLoopBackOff, OOMKilled, ImagePullBackOff, 502/503 playbooks
 - Agent Trace + SSE live execution
 - Incident reports with cited runbooks
@@ -47,7 +47,7 @@ Repo: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/enterpr
 
 ## Architecture
 
-<img src="docs/images/architecture.png" alt="System architecture" width="100%" />
+<img src="screenshots/07-architecture.png" alt="System architecture" width="100%" />
 
 ```mermaid
 flowchart TB
@@ -60,7 +60,7 @@ flowchart TB
     MCP --> K8s[Kubernetes]
     MCP --> Docker[Docker]
     MCP --> SSH[SSH]
-    RAG --> PG[(PostgreSQL + pgvector)]
+    RAG --> PG[(PostgreSQL + embeddings)]
     API -.-> JWT[JWT / RBAC / Org isolation]
 ```
 
@@ -91,7 +91,7 @@ flowchart LR
 
 ## Tech Stack
 
-Python 3.12 · FastAPI · LangGraph · MCP · PostgreSQL / pgvector · React 18 · Docker Compose · Prometheus / Grafana
+Python 3.12 · FastAPI · LangGraph · MCP · PostgreSQL · React 18 · Docker Compose · Prometheus / Grafana
 
 ---
 
@@ -99,11 +99,11 @@ Python 3.12 · FastAPI · LangGraph · MCP · PostgreSQL / pgvector · React 18 
 
 | Dashboard | Agent interaction |
 |-----------|-------------------|
-| ![Dashboard](docs/images/dashboard.png) | ![Agent](docs/images/agent-chat.png) |
+| ![Dashboard](screenshots/01-dashboard.png) | ![Agent](screenshots/02-agent-chat.png) |
 
 | Kubernetes | Architecture |
 |------------|--------------|
-| ![Kubernetes](docs/images/kubernetes.png) | ![Architecture](docs/images/architecture.png) |
+| ![Kubernetes](screenshots/05-kubernetes.png) | ![Architecture](screenshots/07-architecture.png) |
 
 ---
 

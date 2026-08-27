@@ -1,6 +1,5 @@
 """Abstract LLM Provider"""
 from abc import ABC, abstractmethod
-from typing import Optional
 from openai.types.chat import ChatCompletionMessage
 
 

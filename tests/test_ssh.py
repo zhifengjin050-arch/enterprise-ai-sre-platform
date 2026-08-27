@@ -7,35 +7,55 @@
 - 服务器管理 API（通过 TestClient）
 """
 
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
-from app.database.session import get_local_session, init_db
-from app.database.models import ManagedServer, User, SSHKeyType
 import json
+
+from app.database.models import ManagedServer, User, SSHKeyType
+from app.database.session import get_local_session, init_db
 
 # 初始化数据库
 init_db()
+
+
+def _get_or_create_user(session, username: str, email: str) -> User:
+    user = session.query(User).filter(User.username == username).first()
+    if user is not None:
+        return user
+    user = User(
+        username=username,
+        email=email,
+        password_hash="dummy_hash",
+        role="user",
+    )
+    session.add(user)
+    session.flush()
+    return user
+
+
+def _get_or_create_server(session, user_id: int, **kwargs) -> ManagedServer:
+    name = kwargs["name"]
+    server = session.query(ManagedServer).filter(
+        ManagedServer.name == name,
+        ManagedServer.user_id == user_id,
+    ).first()
+    if server is None:
+        server = ManagedServer(user_id=user_id, **kwargs)
+        session.add(server)
+    else:
+        for key, value in kwargs.items():
+            setattr(server, key, value)
+    session.commit()
+    session.refresh(server)
+    return server
 
 
 def test_managed_server_create():
     """测试1: 创建托管服务器记录"""
     session = get_local_session()
     try:
-        # 创建测试用户
-        user = User(
-            username="ssh_test_user",
-            email="ssh_test@example.com",
-            password_hash="dummy_hash",
-            role="user",
-        )
-        session.add(user)
-        session.flush()
-
-        server = ManagedServer(
-            user_id=user.id,
+        user = _get_or_create_user(session, "ssh_test_user", "ssh_test@example.com")
+        server = _get_or_create_server(
+            session,
+            user.id,
             name="test-server-01",
             host="192.168.1.100",
             port=22,
@@ -43,9 +63,8 @@ def test_managed_server_create():
             auth_type="password",
             auth_credential="test-password",
             description="测试服务器",
+            is_active=True,
         )
-        session.add(server)
-        session.commit()
 
         assert server.id is not None
         print(f"[OK] 创建托管服务器: id={server.id} name={server.name}")
@@ -57,8 +76,11 @@ def test_managed_server_query():
     """测试2: 查询托管服务器"""
     session = get_local_session()
     try:
+        user = session.query(User).filter(User.username == "ssh_test_user").first()
+        assert user is not None
         server = session.query(ManagedServer).filter(
-            ManagedServer.name == "test-server-01"
+            ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
         ).first()
 
         assert server is not None
@@ -76,8 +98,10 @@ def test_managed_server_update():
     """测试3: 更新托管服务器"""
     session = get_local_session()
     try:
+        user = session.query(User).filter(User.username == "ssh_test_user").first()
         server = session.query(ManagedServer).filter(
-            ManagedServer.name == "test-server-01"
+            ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
         ).first()
 
         server.host = "10.0.0.1"
@@ -87,7 +111,8 @@ def test_managed_server_update():
 
         # 重新查询
         updated = session.query(ManagedServer).filter(
-            ManagedServer.name == "test-server-01"
+            ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
         ).first()
         assert updated.host == "10.0.0.1"
         assert updated.port == 2222
@@ -101,27 +126,29 @@ def test_managed_server_deactivate():
     """测试4: 停用服务器"""
     session = get_local_session()
     try:
+        user = session.query(User).filter(User.username == "ssh_test_user").first()
         server = session.query(ManagedServer).filter(
-            ManagedServer.name == "test-server-01"
+            ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
         ).first()
 
         server.is_active = False
         session.commit()
 
-        # 活跃查询不应返回
         active = session.query(ManagedServer).filter(
             ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
             ManagedServer.is_active == True,
         ).first()
         assert active is None
 
-        # 不限制活跃的查询应返回
         all_servers = session.query(ManagedServer).filter(
-            ManagedServer.name == "test-server-01"
+            ManagedServer.name == "test-server-01",
+            ManagedServer.user_id == user.id,
         ).first()
         assert all_servers is not None
         assert all_servers.is_active is False
-        print(f"[OK] 停用服务器: is_active=False")
+        print("[OK] 停用服务器: is_active=False")
     finally:
         session.close()
 
@@ -130,27 +157,18 @@ def test_managed_server_data_isolation():
     """测试5: 数据隔离 — 不同用户不能看到对方的服务器"""
     session = get_local_session()
     try:
-        # 创建第二个用户
-        user2 = User(
-            username="ssh_test_user_2",
-            email="ssh_test2@example.com",
-            password_hash="dummy_hash",
-            role="user",
-        )
-        session.add(user2)
-        session.flush()
-
-        server2 = ManagedServer(
-            user_id=user2.id,
+        user2 = _get_or_create_user(session, "ssh_test_user_2", "ssh_test2@example.com")
+        server2 = _get_or_create_server(
+            session,
+            user2.id,
             name="test-server-02",
             host="10.0.0.2",
             port=22,
             username="admin",
             auth_type="password",
             auth_credential="secret",
+            is_active=True,
         )
-        session.add(server2)
-        session.commit()
 
         # 查询第一个用户应该只能看到自己的服务器（被停用了，所以为空）
         user1_servers = session.query(ManagedServer).filter(
@@ -163,8 +181,7 @@ def test_managed_server_data_isolation():
         user2_servers = session.query(ManagedServer).filter(
             ManagedServer.user_id == user2.id
         ).all()
-        assert len(user2_servers) == 1
-        assert user2_servers[0].name == "test-server-02"
+        assert any(s.name == "test-server-02" for s in user2_servers)
 
         print(f"[OK] 数据隔离: user2 看到 {len(user2_servers)} 台服务器")
     finally:
@@ -176,9 +193,11 @@ def test_managed_server_cascade_delete():
     session = get_local_session()
     try:
         # 创建临时用户和服务器
+        import uuid
+        suffix = uuid.uuid4().hex[:8]
         temp_user = User(
-            username="ssh_temp_user",
-            email="ssh_temp@example.com",
+            username=f"ssh_temp_{suffix}",
+            email=f"ssh_temp_{suffix}@example.com",
             password_hash="dummy_hash",
             role="user",
         )
@@ -208,7 +227,7 @@ def test_managed_server_cascade_delete():
             ManagedServer.id == server_id
         ).first()
         assert deleted_server is None
-        print(f"[OK] 级联删除: 用户删除后服务器也被删除")
+        print("[OK] 级联删除: 用户删除后服务器也被删除")
     finally:
         session.close()
 
@@ -220,7 +239,7 @@ def test_ssh_tool_lookup_server():
     try:
         info = _lookup_server("test-server-01")
         # 因 test-server-01 被停用了，应失败
-        print(f"[INFO] _lookup_server('test-server-01') 预期失败 (is_active=False)")
+        print("[INFO] _lookup_server('test-server-01') 预期失败 (is_active=False)")
     except ValueError as e:
         print(f"[OK] _lookup_server 正确处理非活跃服务器: {e}")
 
@@ -231,7 +250,7 @@ def test_ssh_tool_missing_server():
 
     try:
         info = _lookup_server("nonexistent-server")
-        print(f"[FAIL] 应抛出 ValueError")
+        print("[FAIL] 应抛出 ValueError")
     except ValueError as e:
         print(f"[OK] _lookup_server 正确处理不存在的服务器: {e}")
 
@@ -296,7 +315,14 @@ def test_close_all_ssh_connections():
 
     # 应该不会报错
     close_all_ssh_connections()
-    print(f"[OK] close_all_ssh_connections 执行成功")
+    print("[OK] close_all_ssh_connections 执行成功")
+
+
+def test_pkey_from_invalid_material():
+    from app.tools.ssh_ops import _pkey_from_material
+
+    assert _pkey_from_material("not-a-key") is None
+    print("[OK] 非法 PEM 私钥解析返回 None")
 
 
 # ============================================================
@@ -304,6 +330,16 @@ def test_close_all_ssh_connections():
 # ============================================================
 print()
 print("--- API 测试 ---")
+
+
+def _first_managed_server_id(servers):
+    """跳过本机哨兵 id=-1，取第一台真实托管服务器。"""
+    assert isinstance(servers, list) and servers, f"服务器列表为空: {servers}"
+    for item in servers:
+        sid = item.get("id") if isinstance(item, dict) else None
+        if isinstance(sid, int) and sid > 0:
+            return sid
+    raise AssertionError(f"没有托管服务器可供测试: {servers}")
 
 
 def test_server_api_create():
@@ -319,7 +355,7 @@ def test_server_api_create():
         "email": "server_api@example.com",
         "password": "testpass123",
     })
-    assert reg_resp.status_code in (200, 201)
+    assert reg_resp.status_code in (200, 201, 409)
     token = reg_resp.json().get("access_token", "")
 
     if not token:
@@ -344,12 +380,80 @@ def test_server_api_create():
         "description": "API 测试服务器",
     }, headers=headers)
 
-    assert resp.status_code == 200, f"期望 200，实际 {resp.status_code}: {resp.text}"
+    assert resp.status_code in (200, 409), f"期望 200/409，实际 {resp.status_code}: {resp.text}"
+    if resp.status_code == 409:
+        listed = client.get("/api/servers", headers=headers).json()
+        data = next((s for s in listed if s.get("name") == "api-test-server"), None)
+        assert data is not None, "重复名称冲突但列表中找不到 api-test-server"
+        print(f"[OK] POST /api/servers → 已存在 id={data['id']} name={data['name']}")
+        return
     data = resp.json()
     assert data["name"] == "api-test-server"
     assert data["host"] == "192.168.1.50"
     assert data["port"] == 2222
     print(f"[OK] POST /api/servers → id={data['id']} name={data['name']}")
+
+
+def test_server_credential_encrypted_at_rest():
+    """API 写入的 SSH 凭据必须加密落库，且工具层能解密。"""
+    import uuid
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.security.secrets import SECRET_PREFIX, decrypt_secret
+    from app.tools.ssh_ops import _lookup_server
+
+    client = TestClient(app)
+    suffix = uuid.uuid4().hex[:8]
+    username = f"enc_user_{suffix}"
+    server_name = f"enc-svr-{suffix}"
+
+    reg = client.post("/api/auth/register", json={
+        "username": username,
+        "email": f"{username}@example.com",
+        "password": "testpass123",
+    })
+    token = reg.json().get("access_token", "")
+    if not token:
+        token = client.post("/api/auth/login", json={
+            "username": username,
+            "password": "testpass123",
+        }).json().get("access_token", "")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/api/servers", json={
+        "name": server_name,
+        "host": "10.9.9.9",
+        "port": 22,
+        "username": "ops",
+        "auth_type": "password",
+        "auth_credential": "secure-password",
+    }, headers=headers)
+    assert resp.status_code == 200, resp.text
+
+    session = get_local_session()
+    try:
+        server = session.query(ManagedServer).filter(
+            ManagedServer.name == server_name
+        ).first()
+        assert server is not None
+        assert server.auth_credential != "secure-password"
+        assert server.auth_credential.startswith(SECRET_PREFIX)
+        assert decrypt_secret(server.auth_credential) == "secure-password"
+    finally:
+        session.close()
+
+    info = _lookup_server(server_name)
+    assert info["password"] == "secure-password"
+    print("[OK] SSH 凭据加密存储且工具层解密成功")
+
+
+def test_ssh_lookup_legacy_plaintext():
+    """历史明文凭据仍可被工具层读取。"""
+    from app.tools.ssh_ops import _lookup_server
+
+    info = _lookup_server("test-server-02")
+    assert info["password"] == "secret"
+    print("[OK] 历史明文凭据兼容读取")
 
 
 def test_server_api_list():
@@ -392,7 +496,7 @@ def test_server_api_get():
     # 先列出获取 ID
     list_resp = client.get("/api/servers", headers=headers)
     servers = list_resp.json()
-    server_id = servers[0]["id"]
+    server_id = _first_managed_server_id(servers)
 
     resp = client.get(f"/api/servers/{server_id}", headers=headers)
     assert resp.status_code == 200
@@ -418,7 +522,7 @@ def test_server_api_update():
     headers = {"Authorization": f"Bearer {token}"}
 
     list_resp = client.get("/api/servers", headers=headers)
-    server_id = list_resp.json()[0]["id"]
+    server_id = _first_managed_server_id(list_resp.json())
 
     resp = client.put(f"/api/servers/{server_id}", json={
         "description": "已更新的服务器",
@@ -447,7 +551,7 @@ def test_server_api_delete():
 
     list_resp = client.get("/api/servers", headers=headers)
     servers = list_resp.json()
-    server_id = servers[0]["id"]
+    server_id = _first_managed_server_id(servers)
 
     resp = client.delete(f"/api/servers/{server_id}", headers=headers)
     assert resp.status_code == 200
@@ -461,6 +565,7 @@ def test_server_api_delete():
 
 def test_server_api_duplicate_name():
     """测试20: POST /api/servers 重复名称应返回 409"""
+    import uuid
     from fastapi.testclient import TestClient
     from app.main import app
 
@@ -472,10 +577,10 @@ def test_server_api_duplicate_name():
     })
     token = login_resp.json().get("access_token", "")
     headers = {"Authorization": f"Bearer {token}"}
+    name = f"dup-{uuid.uuid4().hex[:8]}"
 
-    # 创建第一个
     resp1 = client.post("/api/servers", json={
-        "name": "duplicate-test",
+        "name": name,
         "host": "10.0.0.1",
         "port": 22,
         "username": "admin",
@@ -484,9 +589,8 @@ def test_server_api_duplicate_name():
     }, headers=headers)
     assert resp1.status_code == 200
 
-    # 创建同名
     resp2 = client.post("/api/servers", json={
-        "name": "duplicate-test",
+        "name": name,
         "host": "10.0.0.2",
         "port": 22,
         "username": "admin",
@@ -494,7 +598,7 @@ def test_server_api_duplicate_name():
         "auth_credential": "pw456",
     }, headers=headers)
     assert resp2.status_code == 409
-    print(f"[OK] 重复名称返回 409")
+    print("[OK] 重复名称返回 409")
 
 
 def test_server_api_unauthorized():
@@ -506,7 +610,7 @@ def test_server_api_unauthorized():
 
     resp = client.get("/api/servers")
     assert resp.status_code == 401
-    print(f"[OK] 未认证访问返回 401")
+    print("[OK] 未认证访问返回 401")
 
 
 def test_server_api_test_connection():
@@ -524,8 +628,10 @@ def test_server_api_test_connection():
     headers = {"Authorization": f"Bearer {token}"}
 
     # 创建一个测试服务器
+    import uuid
+    conn_name = f"conn-{uuid.uuid4().hex[:8]}"
     create_resp = client.post("/api/servers", json={
-        "name": "connection-test-server",
+        "name": conn_name,
         "host": "192.168.99.99",
         "port": 22,
         "username": "test",
@@ -533,6 +639,7 @@ def test_server_api_test_connection():
         "auth_credential": "test",
         "description": "连接测试",
     }, headers=headers)
+    assert create_resp.status_code == 200, create_resp.text
     server_id = create_resp.json()["id"]
 
     # 测试连接

@@ -57,7 +57,7 @@ def test_docker_logs() -> None:
     # 容器不存在时应该返回友好错误消息，而不是抛出异常
     assert result is not None, "不应返回 None"
     assert "不存在" in result or "不可用" in result, "应返回友好错误信息"
-    print(f"[OK] docker_logs 异常处理正常")
+    print("[OK] docker_logs 异常处理正常")
 
 
 def test_system_logs() -> None:
@@ -70,9 +70,9 @@ def test_system_logs() -> None:
     assert isinstance(result, str), "应返回字符串"
 
     # Windows 环境下返回友好提示，Linux 环境下正常执行
-    print(f"[OK] system_logs 正常处理")
+    print("[OK] system_logs 正常处理")
     if "不支持" in result:
-        print(f"      (当前环境: Windows, 仅支持 Linux journalctl)")
+        print("      (当前环境: Windows, 仅支持 Linux journalctl)")
     else:
         lines = result.count("\n") + 1
         print(f"      (返回 {lines} 行日志)")

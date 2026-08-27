@@ -5,6 +5,8 @@
 """
 
 import logging
+from io import StringIO
+
 import paramiko
 from langchain.tools import tool
 
@@ -12,6 +14,28 @@ logger = logging.getLogger("agent")
 
 # 全局 SSH 客户端缓存（避免重复连接）
 _ssh_clients: dict[str, paramiko.SSHClient] = {}
+_SSH_CLIENT_MAX = 32
+
+
+def _evict_ssh_clients() -> None:
+    while len(_ssh_clients) >= _SSH_CLIENT_MAX:
+        stale_key = next(iter(_ssh_clients))
+        client = _ssh_clients.pop(stale_key, None)
+        if client:
+            try:
+                client.close()
+            except Exception:
+                pass
+
+
+def _pkey_from_material(material: str):
+    """把粘贴的 PEM 私钥解析为 paramiko PKey。"""
+    for cls in (paramiko.Ed25519Key, paramiko.RSAKey, paramiko.ECDSAKey):
+        try:
+            return cls.from_private_key(StringIO(material))
+        except (paramiko.SSHException, ValueError, TypeError):
+            continue
+    return None
 
 
 def _get_ssh_client(host: str, port: int, username: str, password: str | None = None, key_file: str | None = None) -> paramiko.SSHClient:
@@ -22,7 +46,7 @@ def _get_ssh_client(host: str, port: int, username: str, password: str | None = 
         port: SSH 端口
         username: 登录用户名
         password: 密码（可选）
-        key_file: 密钥文件路径（可选）
+        key_file: 密钥文件路径或 PEM 私钥内容（可选）
 
     Returns:
         SSHClient 实例
@@ -36,9 +60,17 @@ def _get_ssh_client(host: str, port: int, username: str, password: str | None = 
 
     try:
         if key_file:
-            client.connect(host, port=port, username=username, key_filename=key_file, timeout=10)
+            stripped = key_file.strip()
+            if stripped.startswith("-----BEGIN"):
+                pkey = _pkey_from_material(stripped)
+                if pkey is None:
+                    raise ValueError("无法解析 SSH 私钥内容")
+                client.connect(host, port=port, username=username, pkey=pkey, timeout=10)
+            else:
+                client.connect(host, port=port, username=username, key_filename=key_file, timeout=10)
         else:
             client.connect(host, port=port, username=username, password=password, timeout=10)
+        _evict_ssh_clients()
         _ssh_clients[cache_key] = client
         return client
     except Exception as e:
@@ -73,12 +105,15 @@ def _lookup_server(server_name: str) -> dict:
         ).first()
         if server is None:
             raise ValueError(f"未找到名为 '{server_name}' 的活跃服务器，请先在 /api/servers 中注册。")
+        from app.security.secrets import decrypt_secret
+
+        credential = decrypt_secret(server.auth_credential)
         return {
             "host": server.host,
             "port": server.port,
             "username": server.username,
-            "password": server.auth_credential if server.auth_type == "password" else None,
-            "key_file": server.auth_credential if server.auth_type == "key" else None,
+            "password": credential if server.auth_type == "password" else None,
+            "key_file": credential if server.auth_type == "key" else None,
         }
     finally:
         session.close()
@@ -222,7 +257,7 @@ def ssh_system_logs(server_name: str, service: str = "", level: str = "ERROR", l
 def close_all_ssh_connections():
     """关闭所有 SSH 连接（用于应用关闭时清理）"""
     global _ssh_clients
-    for key, client in _ssh_clients.items():
+    for _key, client in _ssh_clients.items():
         try:
             client.close()
         except Exception:

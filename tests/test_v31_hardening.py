@@ -85,3 +85,21 @@ def test_approval_lifecycle():
     token = create_approval(action)
     assert approve_action(token) is True
     assert reject_action(token) is False
+
+
+def test_approval_bound_to_owner():
+    from app.agent.approval import parse_approval_response
+
+    action = RepairAction(
+        tool_name="get_cpu_usage",
+        tool_args={},
+        description="noop-owned",
+        requires_approval=True,
+    )
+    token = create_approval(action, user_id=7)
+    assert approve_action(token, user_id=8) is False
+    assert reject_action(token, user_id=8) is False
+    assert parse_approval_response("确认", user_id=7) is None
+    assert parse_approval_response(f"确认修复 {token}", user_id=8) is None
+    assert parse_approval_response(f"确认修复 {token}", user_id=7) == token
+    assert approve_action(token, user_id=7) is True

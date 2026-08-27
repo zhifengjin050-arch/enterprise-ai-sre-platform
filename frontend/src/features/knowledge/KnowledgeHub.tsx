@@ -138,7 +138,7 @@ export default function KnowledgeHub() {
   /* ── Source CRUD ── */
   const handleCreateSource = async () => {
     setFormErr('')
-    if (!formName.trim()) { setFormErr('请输入知识源名称'); return }
+    if (!formName.trim()) setFormErr('请输入知识源名称'); return
     try {
       await api.post('/knowledge/sources', {
         type: formType,
@@ -188,7 +188,7 @@ export default function KnowledgeHub() {
         loadTasks()
       }, 3000)
       setTimeout(() => {
-        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+        if (pollRef.current) clearInterval(pollRef.current); pollRef.current = null
       }, 30000)
     } catch (e: any) {
       setErr('触发同步失败：' + (e?.response?.data?.detail || ''))

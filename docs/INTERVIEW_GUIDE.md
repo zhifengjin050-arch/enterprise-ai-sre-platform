@@ -40,14 +40,14 @@ Kubernetes / Docker / SSH / 知识库
 |------|------|--------|
 | **Agent 编排** | LangGraph StateGraph | 比 LangChain AgentExecutor 更灵活，可精确控制状态流转和条件分支 |
 | **工具协议** | MCP (Model Context Protocol) | 标准化工具接口，新工具无需改 Agent 代码，动态发现 |
-| **知识检索** | RAG (pgvector) | 企业知识实时更新、可解释、可私有化部署，无需微调 |
+| **知识检索** | RAG（JSON embedding + 余弦相似度） | 企业知识实时更新、可解释、可私有化部署，无需微调 |
 | **LLM 推理** | DeepSeek-V4-Flash (Function Calling) | 高性能 Tool Calling，支持多轮工具调用 |
 | **流式输出** | SSE (Server-Sent Events) | 实时展示 Agent 推理过程，提升交互体验 |
 | **可观测性** | Agent Trace + Prometheus + Grafana | 全链路追踪 + 业务指标 + 可视化面板 |
 
 ### 回答示例
 
-> "架构上分为四层：接入层（FastAPI + JWT 认证）、编排层（LangGraph StateGraph）、工具层（内置 18 工具 + MCP 17 工具）、知识层（RAG pgvector + 企业知识 Hub）。\n\n核心设计是 LangGraph 的状态图——Agent Node 做推理和规划，Tools Node 执行工具，两者通过条件边循环，直到工具调用完成为止。每次循环都会注入 RAG 上下文和 Memory 上下文，让 LLM 感知企业知识和历史记录。\n\nMCP 协议是亮点——它让工具扩展变成了动态发现。新运维工具只要实现 MCP Server 协议，平台就能自动识别和调用，不需要改任何 Agent 代码。\n\nv3.3 新增的企业知识 Hub 实现了多租户隔离——不同 Organization 的知识完全隔离，凭据加密存储，同步 Pipeline 自动从飞书拉取文档。"
+> "架构上分为四层：接入层（FastAPI + JWT 认证）、编排层（LangGraph StateGraph）、工具层（内置 18 工具 + MCP 17 工具）、知识层（RAG 余弦检索 + 企业知识 Hub）。\n\n核心设计是 LangGraph 的状态图——Agent Node 做推理和规划，Tools Node 执行工具，两者通过条件边循环，直到工具调用完成为止。每次循环都会注入 RAG 上下文和 Memory 上下文，让 LLM 感知企业知识和历史记录。\n\nMCP 协议是亮点——它让工具扩展变成了动态发现。新运维工具只要实现 MCP Server 协议，平台就能自动识别和调用，不需要改任何 Agent 代码。\n\nv3.3 新增的企业知识 Hub 实现了多租户隔离——不同 Organization 的知识完全隔离，凭据加密存储，同步 Pipeline 自动从飞书拉取文档。"
 
 ---
 
@@ -150,7 +150,7 @@ RAG:
 
 ```
 文档上传 → Chunk 切分 (chunk_size=500, overlap=50)
-         → Embedding API → pgvector (余弦相似度索引)
+         → Embedding API → JSON 存储 + 应用层余弦相似度
 
 用户查询 → Embedding → 语义检索 (top_k=3)
          → 结果注入 Agent System Prompt
@@ -207,7 +207,7 @@ Agent knowledge_search
 |------|--------|
 | **AI Agent** | LangGraph, StateGraph, Function Calling, Tool Calling, Agent Loop |
 | **运维工具** | MCP Protocol, Kubernetes, Docker, SSH, Prometheus, Grafana |
-| **知识管理** | RAG, pgvector, Embedding, Enterprise Knowledge Hub, 多租户 |
+| **知识管理** | RAG, cosine embedding, Embedding, Enterprise Knowledge Hub, 多租户 |
 | **后端架构** | FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis, OpenTelemetry |
 | **系统设计** | 多租户隔离, RBAC, Fernet 加密, 优雅降级, 全链路跟踪 |
 | **前端** | React 18, TypeScript, Vite, SSE, WebSocket, TailwindCSS |

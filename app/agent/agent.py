@@ -142,27 +142,10 @@ def create_agent_node():
         try:
             from app.monitoring.metrics import observe_llm_request
             observe_llm_request(llm_duration)
-            # #region agent log
-            try:
-                import json as _json, time as _time
-                from pathlib import Path as _P
-                with open(_P(__file__).resolve().parents[2] / "debug-c5f825.log", "a", encoding="utf-8") as _f:
-                    _f.write(_json.dumps({"sessionId":"c5f825","runId":"v32-debug","hypothesisId":"H2","location":"app/agent/agent.py:observe_llm","message":"observe_llm_request ok","data":{"duration_s":round(llm_duration,3),"tool_calls":len(response.tool_calls or [])},"timestamp":int(_time.time()*1000)}, ensure_ascii=False)+"\n")
-            except Exception:
-                pass
-            # #endregion
         except ImportError:
             pass
-        except Exception as e:
-            # #region agent log
-            try:
-                import json as _json, time as _time
-                from pathlib import Path as _P
-                with open(_P(__file__).resolve().parents[2] / "debug-c5f825.log", "a", encoding="utf-8") as _f:
-                    _f.write(_json.dumps({"sessionId":"c5f825","runId":"v32-debug","hypothesisId":"H2","location":"app/agent/agent.py:observe_llm","message":"observe_llm_request failed","data":{"err":type(e).__name__,"msg":str(e)[:200]},"timestamp":int(_time.time()*1000)}, ensure_ascii=False)+"\n")
-            except Exception:
-                pass
-            # #endregion
+        except Exception:
+            logger.debug("observe_llm_request 失败", exc_info=True)
             raise
 
         if response.tool_calls:

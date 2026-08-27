@@ -336,7 +336,10 @@ def phase3():
         "frontend/src/features/incidents/Incidents.tsx",
         "frontend/src/features/knowledge/KnowledgeCenter.tsx",
     ]:
-        text = (ROOT / rel).read_text(encoding="utf-8")
+        path = ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
         if "Infrastructure Explorer" in text or "Incident Management" in text or "Knowledge Center" in text:
             leftovers.append(rel)
     rec("FE", "i18n leftover English titles", len(leftovers) == 0, ",".join(leftovers) or "none")

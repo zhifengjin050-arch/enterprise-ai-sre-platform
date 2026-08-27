@@ -37,7 +37,17 @@ class MCPClient:
         if not self.config.cwd:
             raise ValueError("MCP_SERVER_CWD 未配置，无法启动 MCP Server 子进程")
 
-        env = {**os.environ, "FASTMCP_SHOW_SERVER_BANNER": "false"}
+        env = {k: os.environ[k] for k in (
+            "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC",
+            "TEMP", "TMP", "HOME", "USERPROFILE", "USERNAME",
+            "VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME",
+            "PYTHONIOENCODING", "PYTHONUNBUFFERED", "PYTHONUTF8",
+            "LANG", "LC_ALL", "KUBECONFIG", "DOCKER_HOST",
+            "ProgramFiles", "ProgramFiles(x86)", "ProgramData",
+        ) if k in os.environ}
+        env["FASTMCP_SHOW_SERVER_BANNER"] = "false"
+        env["EXECUTE_TOOLS_ENABLED"] = os.environ.get("MCP_EXECUTE_TOOLS_ENABLED", "false")
+        env["ENABLE_SECURITY"] = os.environ.get("ENABLE_SECURITY", "true")
         params = StdioServerParameters(
             command=self.config.command,
             args=self.config.args,

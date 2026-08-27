@@ -138,6 +138,10 @@ const zh = {
     noReport: '（无报告）',
     errorPrefix: '错误',
     resize: '拖动调节宽度',
+    stop: '停止',
+    stopped: '已停止生成',
+    convLoadFail: '会话列表加载失败',
+    deleteFail: '删除失败',
   },
   traces: {
     runs: '运行记录',

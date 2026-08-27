@@ -10,10 +10,6 @@
 """
 
 import os
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -107,7 +103,7 @@ def test_requirements_complete():
     required = ["fastapi", "uvicorn", "langgraph", "openai", "psutil", "docker", "httpx"]
     for pkg in required:
         assert pkg in content, f"缺少依赖包: {pkg}"
-    print(f"[OK] requirements.txt — 包含全部生产依赖")
+    print("[OK] requirements.txt — 包含全部生产依赖")
 
 
 def test_dockerignore_exists():

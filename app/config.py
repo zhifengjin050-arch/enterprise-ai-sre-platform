@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440  # 24 小时
     cors_origins: str = "http://localhost:80,http://localhost:8000,http://localhost:5173"
     rate_limit_per_minute: int = 60
+    allow_register: bool = True
+    metrics_token: str = ""
 
     def is_production(self) -> bool:
         return (self.environment or "").strip().lower() in ("production", "prod")

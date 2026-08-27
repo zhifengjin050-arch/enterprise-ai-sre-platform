@@ -10,11 +10,6 @@
 - 用户数据隔离
 """
 
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from app.database.session import get_local_session, init_db
 from app.database.models import User, Conversation, Message
 
@@ -26,6 +21,11 @@ def test_create_user():
     """测试1: 创建用户"""
     session = get_local_session()
     try:
+        existing = session.query(User).filter(User.username == "db_test_user_1").first()
+        if existing is not None:
+            assert existing.id is not None
+            print(f"[OK] test_create_user — existing id={existing.id}")
+            return
         user = User(
             username="db_test_user_1",
             email="db_test1@example.com",
@@ -149,11 +149,15 @@ def test_data_isolation():
     """测试7: 用户数据隔离"""
     session = get_local_session()
     try:
-        # 创建两个用户
-        user_a = User(username="user_a", email="a@test.com", password_hash="hash", role="user")
-        user_b = User(username="user_b", email="b@test.com", password_hash="hash", role="user")
-        session.add(user_a)
-        session.add(user_b)
+        # 创建两个用户（重复跑时复用已有账号，避免 UNIQUE 冲突）
+        user_a = session.query(User).filter(User.username == "user_a").first()
+        user_b = session.query(User).filter(User.username == "user_b").first()
+        if user_a is None:
+            user_a = User(username="user_a", email="a@test.com", password_hash="hash", role="user")
+            session.add(user_a)
+        if user_b is None:
+            user_b = User(username="user_b", email="b@test.com", password_hash="hash", role="user")
+            session.add(user_b)
         session.commit()
 
         # 各自创建会话
@@ -185,10 +189,13 @@ def test_role_default():
     """测试8: 用户角色默认值"""
     session = get_local_session()
     try:
-        user = User(username="role_test", email="role@test.com", password_hash="hash")
-        session.add(user)
-        session.commit()
-        assert user.role == "user", f"默认角色应为user, 实际: {user.role}"
+        user = session.query(User).filter(User.username == "role_test").first()
+        if user is None:
+            user = User(username="role_test", email="role@test.com", password_hash="hash")
+            session.add(user)
+            session.commit()
+        role_value = user.role.value if hasattr(user.role, "value") else user.role
+        assert role_value == "user", f"默认角色应为user, 实际: {user.role}"
         print(f"[OK] test_role_default — role={user.role}")
     finally:
         session.close()
@@ -209,5 +216,5 @@ if __name__ == "__main__":
     test_role_default()
 
     print("=" * 60)
-    print(f"  全部 8 项数据库测试通过！")
+    print("  全部 8 项数据库测试通过！")
     print("=" * 60)

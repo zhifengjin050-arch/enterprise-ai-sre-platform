@@ -19,6 +19,7 @@ export async function streamChat(
   payload: { message: string; session_id?: string; conversation_id?: number },
   onEvent: (event: StreamEvent) => void,
   token?: string | null,
+  signal?: AbortSignal,
 ): Promise<StreamEvent> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -34,6 +35,7 @@ export async function streamChat(
       session_id: payload.session_id || 'web-console',
       conversation_id: payload.conversation_id,
     }),
+    signal,
   })
 
   if (!res.ok || !res.body) {

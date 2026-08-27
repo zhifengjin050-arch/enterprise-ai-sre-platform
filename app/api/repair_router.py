@@ -36,7 +36,7 @@ async def approve_repair(
     - 需要 JWT 认证
     - token 由 Agent 在修复方案中提供
     """
-    if approve_action(req.token):
+    if approve_action(req.token, user_id=current_user.id):
         result = execute_approved_action(req.token, db=db)
         return {"status": "approved", "result": result}
     return {"status": "error", "detail": "审批令牌无效或已处理"}
@@ -53,6 +53,6 @@ async def reject_repair(
     - 需要 JWT 认证
     - token 由 Agent 在修复方案中提供
     """
-    if reject_action(req.token):
+    if reject_action(req.token, user_id=current_user.id):
         return {"status": "rejected"}
     return {"status": "error", "detail": "审批令牌无效或已处理"}

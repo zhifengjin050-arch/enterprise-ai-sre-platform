@@ -10,11 +10,6 @@
 - 安全控制（禁用高危操作）
 """
 
-import sys
-import io
-
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 from app.config import settings
 from app.tools.registry import get_tool, get_tool_schemas
 
@@ -113,7 +108,7 @@ def test_safe_command_detection():
     assert _is_safe_command(["describe", "pod", "nginx"]) is True
     assert _is_safe_command(["rollout", "restart", "deployment", "nginx"]) is True
 
-    print(f"[OK] 安全操作全部通过安全检查")
+    print("[OK] 安全操作全部通过安全检查")
 
 
 def test_dangerous_command_blocked():
@@ -126,7 +121,7 @@ def test_dangerous_command_blocked():
     assert _is_safe_command(["exec", "-it", "pod", "--", "bash"]) is False
     assert _is_safe_command(["drain", "node01"]) is False
 
-    print(f"[OK] 危险操作全部被拦截")
+    print("[OK] 危险操作全部被拦截")
 
 
 def test_dangerous_operations_list():
@@ -352,7 +347,7 @@ def test_run_kubectl_no_kubectl():
     # 由于 K8S_ENABLED=False，应先返回未启用
     assert result.get("success") is False
     assert "未启用" in result.get("error", "")
-    print(f"[OK] _run_kubectl 正确处理 K8S 未启用状态")
+    print("[OK] _run_kubectl 正确处理 K8S 未启用状态")
 
 
 def test_build_cmd_with_kubeconfig():
@@ -397,7 +392,7 @@ def test_trace_structure_preserved():
     assert step["tool"] == "kubectl_get_pods"
     assert step["status"] == "running"
     assert step["duration_ms"] == 0
-    print(f"[OK] Agent Trace 结构兼容 K8S 工具事件")
+    print("[OK] Agent Trace 结构兼容 K8S 工具事件")
 
 
 def test_k8s_config_settings():
@@ -406,7 +401,7 @@ def test_k8s_config_settings():
     assert hasattr(settings, "kubeconfig_path")
     assert hasattr(settings, "kubernetes_timeout")
     assert hasattr(settings, "kubernetes_allow_restart")
-    print(f"[OK] settings 包含全部 4 个 Kubernetes 配置项")
+    print("[OK] settings 包含全部 4 个 Kubernetes 配置项")
 
 
 # ============================================================

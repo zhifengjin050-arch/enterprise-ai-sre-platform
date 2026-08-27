@@ -15,34 +15,38 @@
 """
 
 import asyncio
-import time
 import json
 import logging
+import os
+import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
 from pathlib import Path
 from starlette.concurrency import run_in_threadpool
-from sqlalchemy import text as sa_text
+from sqlalchemy import func, text as sa_text
 from sqlalchemy.orm import Session as SASession
 
 from app.agent.graph import create_agent_graph
 from app.config import settings, APP_VERSION
 from app.logging_config import setup_logging
 from app.llm.client import DeepSeekClient
-from app.database.session import init_db, get_db
+from app.database.session import init_db, get_db, get_local_session
 from app.database.models import (
-    User, Conversation, Message, ManagedServer, SSHKeyType,
-    AgentExecution, ExecutionStatus, AlertRecord, AlertStatus,
-    AgentTrace,
+    User, Conversation, Message, ManagedServer, AgentExecution, ExecutionStatus,
 )
 from app.auth.router import router as auth_router
-from app.auth.dependencies import get_current_user, get_optional_user, require_system_status_user
+from app.auth.dependencies import get_current_user, get_chat_user, require_system_status_user
+from app.auth.jwt import decode_access_token
+from app.security.secrets import encrypt_secret
 from app.streaming.events import stream_manager, StreamEvent
 from app.trace.service import trace_service
 from sse_starlette.sse import EventSourceResponse
@@ -59,17 +63,109 @@ logger = logging.getLogger(__name__)
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 _RATE_LIMIT = settings.rate_limit_per_minute
 _RATE_WINDOW = 60  # seconds
+_RATE_MAX_KEYS = 5000
+
+
+def _prune_rate_bucket(client_ip: str, now: float) -> list[float]:
+    hits = [t for t in _rate_limit_store.get(client_ip, []) if now - t < _RATE_WINDOW]
+    if hits:
+        _rate_limit_store[client_ip] = hits
+    else:
+        _rate_limit_store.pop(client_ip, None)
+    if len(_rate_limit_store) > _RATE_MAX_KEYS:
+        stale = min(_rate_limit_store, key=lambda k: _rate_limit_store[k][0] if _rate_limit_store[k] else now)
+        _rate_limit_store.pop(stale, None)
+    return _rate_limit_store.get(client_ip, [])
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """应用启动 / 关闭：数据库、监控、MCP、遥测。"""
+    try:
+        settings.validate_production_security()
+    except RuntimeError:
+        logger.critical("生产安全检查失败，拒绝启动")
+        raise
+
+    try:
+        init_db()
+        logger.info("数据库初始化完成")
+    except Exception as e:
+        logger.warning("数据库初始化失败: %s", e)
+
+    try:
+        from app.monitoring.collector import start_collector
+        start_collector(interval=settings.metrics_collect_interval)
+        logger.info("指标采集线程已启动")
+    except Exception as e:
+        logger.warning("指标采集线程启动失败: %s", e)
+
+    try:
+        from app.alert.manager import start_alert_evaluator
+        start_alert_evaluator(interval=settings.alert_evaluate_interval)
+        logger.info("告警评估线程已启动")
+    except Exception as e:
+        logger.warning("告警评估线程启动失败: %s", e)
+
+    try:
+        from app.mcp.manager import mcp_manager
+        if mcp_manager.start():
+            logger.info("MCP Client 已连接: %s", mcp_manager.status())
+        else:
+            logger.info("MCP 未启用或连接失败，使用内置工具")
+    except Exception as e:
+        logger.warning("MCP 启动异常，降级到内置工具: %s", e)
+
+    try:
+        from app.telemetry.setup import setup_telemetry
+        setup_telemetry(app=_app, service_version=APP_VERSION)
+        logger.info("OpenTelemetry 已初始化")
+    except Exception as e:
+        logger.warning("OpenTelemetry 初始化失败: %s", e)
+
+    yield
+
+    try:
+        from app.mcp.manager import mcp_manager
+        mcp_manager.stop()
+        logger.info("MCP Client 已关闭")
+    except Exception as e:
+        logger.warning("MCP 关闭异常: %s", e)
+
+    try:
+        from app.tools.ssh_ops import close_all_ssh_connections
+        close_all_ssh_connections()
+        logger.info("SSH 连接已关闭")
+    except Exception as e:
+        logger.warning("SSH 关闭异常: %s", e)
+
+    try:
+        from app.monitoring.collector import stop_collector
+        stop_collector()
+        logger.info("指标采集线程已停止")
+    except Exception as e:
+        logger.warning("指标采集线程停止异常: %s", e)
+
+    try:
+        from app.alert.manager import stop_alert_evaluator
+        stop_alert_evaluator()
+        logger.info("告警评估线程已停止")
+    except Exception as e:
+        logger.warning("告警评估线程停止异常: %s", e)
 
 
 # ============================================================
 # 初始化 FastAPI
 # ============================================================
+_prod = settings.is_production()
 app = FastAPI(
     title="AI 智能运维助手 API",
     description="Enterprise AI DevOps Agent — MCP-powered 企业级智能运维平台 REST API",
     version=APP_VERSION,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if _prod else "/docs",
+    redoc_url=None if _prod else "/redoc",
+    openapi_url=None if _prod else "/openapi.json",
+    lifespan=lifespan,
 )
 
 # ============================================================
@@ -90,29 +186,63 @@ app.add_middleware(
 # ============================================================
 # 中间件 — API 限流
 # ============================================================
+_redis_rl_ok: Optional[bool] = None
+_redis_rl_checked = 0.0
+
+
+def _redis_rate_limit_ready() -> bool:
+    global _redis_rl_ok, _redis_rl_checked
+    now = time.monotonic()
+    if _redis_rl_ok is not None and now - _redis_rl_checked < 15:
+        return _redis_rl_ok
+    from app.cache.redis import ping_redis
+    _redis_rl_ok = ping_redis()
+    _redis_rl_checked = now
+    return _redis_rl_ok
+
+
+def _memory_allow(client_ip: str) -> tuple[bool, int]:
+    now = time.monotonic()
+    hits = _prune_rate_bucket(client_ip, now)
+    if len(hits) >= _RATE_LIMIT:
+        return False, _RATE_WINDOW
+    _rate_limit_store.setdefault(client_ip, []).append(now)
+    return True, 0
+
+
+def _mark_redis_rl_down() -> None:
+    global _redis_rl_ok
+    _redis_rl_ok = False
+
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     path = request.url.path
-    # 健康检查、WebSocket、指标接口不限流
     if path in ("/health", "/metrics", "/docs", "/redoc", "/openapi.json") or path.startswith("/ws/"):
+        return await call_next(request)
+    if (settings.environment or "").strip().lower() in ("test", "testing") or os.environ.get("PYTEST_CURRENT_TEST"):
         return await call_next(request)
 
     client_ip = request.client.host if request.client else "unknown"
-    now = time.monotonic()
+    allowed, retry_after = True, 0
+    used_redis = False
+    if _redis_rate_limit_ready():
+        from app.cache.rate_limiter import rate_limiter
+        result = rate_limiter.check(client_ip, _RATE_LIMIT, _RATE_WINDOW)
+        if result is None:
+            _mark_redis_rl_down()
+        else:
+            allowed, retry_after = result
+            used_redis = True
+    if not used_redis:
+        allowed, retry_after = _memory_allow(client_ip)
 
-    # 清理过期记录
-    _rate_limit_store[client_ip] = [
-        t for t in _rate_limit_store[client_ip] if now - t < _RATE_WINDOW
-    ]
-
-    if len(_rate_limit_store[client_ip]) >= _RATE_LIMIT:
+    if not allowed:
         logger.warning("限流触发: %s (%d 次/分钟)", client_ip, _RATE_LIMIT)
         return JSONResponse(
             status_code=429,
-            content={"detail": "请求过于频繁，请稍后再试", "retry_after": _RATE_WINDOW},
+            content={"detail": "请求过于频繁，请稍后再试", "retry_after": retry_after or _RATE_WINDOW},
         )
-
-    _rate_limit_store[client_ip].append(now)
     return await call_next(request)
 
 
@@ -142,89 +272,12 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# ============================================================
-# 启动事件 — 初始化数据库 + 监控
-# ============================================================
-@app.on_event("startup")
-async def on_startup():
-    """应用启动时初始化数据库表和监控采集"""
-    try:
-        settings.validate_production_security()
-    except RuntimeError:
-        logger.critical("生产安全检查失败，拒绝启动")
-        raise
-
-    try:
-        init_db()
-        logger.info("数据库初始化完成")
-    except Exception as e:
-        logger.warning("数据库初始化失败: %s", e)
-
-    # 启动指标采集线程
-    try:
-        from app.monitoring.collector import start_collector
-        start_collector(interval=settings.metrics_collect_interval)
-        logger.info("指标采集线程已启动")
-    except Exception as e:
-        logger.warning("指标采集线程启动失败: %s", e)
-
-    # 启动告警评估线程
-    try:
-        from app.alert.manager import start_alert_evaluator
-        start_alert_evaluator(interval=settings.alert_evaluate_interval)
-        logger.info("告警评估线程已启动")
-    except Exception as e:
-        logger.warning("告警评估线程启动失败: %s", e)
-
-    # 启动 MCP Client（失败降级到内置工具）
-    try:
-        from app.mcp.manager import mcp_manager
-        if mcp_manager.start():
-            logger.info("MCP Client 已连接: %s", mcp_manager.status())
-        else:
-            logger.info("MCP 未启用或连接失败，使用内置工具")
-    except Exception as e:
-        logger.warning("MCP 启动异常，降级到内置工具: %s", e)
-
-    # 初始化 OpenTelemetry
-    try:
-        from app.telemetry.setup import setup_telemetry
-        setup_telemetry(app=app, service_version=APP_VERSION)
-        logger.info("OpenTelemetry 已初始化")
-    except Exception as e:
-        logger.warning("OpenTelemetry 初始化失败: %s", e)
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    """应用关闭时清理资源"""
-    try:
-        from app.mcp.manager import mcp_manager
-        mcp_manager.stop()
-        logger.info("MCP Client 已关闭")
-    except Exception as e:
-        logger.warning("MCP 关闭异常: %s", e)
-
-    try:
-        from app.tools.ssh_ops import close_all_ssh_connections
-        close_all_ssh_connections()
-        logger.info("SSH 连接已关闭")
-    except Exception as e:
-        logger.warning("SSH 关闭异常: %s", e)
-
-    try:
-        from app.monitoring.collector import stop_collector
-        stop_collector()
-        logger.info("指标采集线程已停止")
-    except Exception as e:
-        logger.warning("指标采集线程停止异常: %s", e)
-
-    try:
-        from app.alert.manager import stop_alert_evaluator
-        stop_alert_evaluator()
-        logger.info("告警评估线程已停止")
-    except Exception as e:
-        logger.warning("告警评估线程停止异常: %s", e)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, (HTTPException, StarletteHTTPException)):
+        return await http_exception_handler(request, exc)
+    logger.exception("未处理异常: %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "服务器内部错误"})
 
 
 # ============================================================
@@ -285,7 +338,7 @@ def _run_agent(message: str, db=None, user_id=None, stream_id="", conversation_i
         # 检查用户消息是否为审批确认响应（v3.0.0 自动修复）
         try:
             from app.agent.approval import parse_approval_response, execute_approved_action
-            approval_token = parse_approval_response(message)
+            approval_token = parse_approval_response(message, user_id=user_id)
             if approval_token:
                 result = execute_approved_action(approval_token, db=db)
                 if result["success"]:
@@ -359,6 +412,14 @@ def _save_agent_execution(db: SASession, user_id: int, conversation_id: Optional
         db.rollback()
 
 
+def _agent_failed(report: str) -> bool:
+    return (report or "").startswith("抱歉，Agent 执行失败")
+
+
+def _execution_status_for(report: str) -> ExecutionStatus:
+    return ExecutionStatus.failed if _agent_failed(report) else ExecutionStatus.success
+
+
 # ============================================================
 # 注册认证路由
 # ============================================================
@@ -383,10 +444,22 @@ app.include_router(repair_router)
 # Prometheus 指标接口
 # ============================================================
 @app.get("/metrics", tags=["系统监控"])
-async def metrics_endpoint():
-    """Prometheus 指标接口（供 Prometheus 抓取）"""
+async def metrics_endpoint(
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None, description="可选：METRICS_TOKEN"),
+):
+    """Prometheus 指标。若配置了 METRICS_TOKEN，需 Bearer 或 ?token=。"""
     from app.monitoring.metrics import get_metrics
     from fastapi.responses import PlainTextResponse
+
+    expected = (settings.metrics_token or "").strip()
+    if expected:
+        provided = (token or "").strip()
+        header = authorization or ""
+        if header.lower().startswith("bearer "):
+            provided = header[7:].strip()
+        if provided != expected:
+            raise HTTPException(status_code=401, detail="未授权")
     return PlainTextResponse(content=get_metrics(), media_type="text/plain; charset=utf-8")
 
 
@@ -406,7 +479,7 @@ async def root():
 async def chat(
     req: ChatRequest,
     db: SASession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_chat_user),
 ):
     """Agent 对话接口 — 返回报告和执行轨迹"""
     # 如果用户已认证，处理会话
@@ -445,21 +518,14 @@ async def chat(
     # 如果已认证，保存消息和执行记录
     if current_user is not None and conversation_id is not None:
         _save_messages(db, conversation_id, req.message, report, trace)
+        failed = _agent_failed(report)
         _save_agent_execution(
             db, current_user.id, conversation_id,
-            status="success", duration=agent_duration,
+            status=_execution_status_for(report), duration=agent_duration,
             tools_called=len([t for t in trace if t.get("status") == "completed" and "调用" in t.get("step", "")]),
+            error=report[:200] if failed else None,
         )
 
-    # #region agent log
-    try:
-        import json as _json
-        _tools = [t.get("tool") or t.get("step") for t in (trace or []) if isinstance(t, dict)]
-        with open(Path(__file__).resolve().parent.parent / "debug-c5f825.log", "a", encoding="utf-8") as _f:
-            _f.write(_json.dumps({"sessionId":"c5f825","runId":"v32-debug","hypothesisId":"H5","location":"app/main.py:chat","message":"chat return","data":{"conversation_id":conversation_id,"session_id":req.session_id,"report_len":len(report or ""),"trace_n":len(trace or []),"tools":_tools[:12],"failed_placeholder": (report or "").startswith("抱歉，Agent 执行失败")},"timestamp":int(time.time()*1000)}, ensure_ascii=False)+"\n")
-    except Exception:
-        pass
-    # #endregion
     return {
         "report": report,
         "session_id": req.session_id,
@@ -469,8 +535,8 @@ async def chat(
 
 
 @app.get("/api/server/status", tags=["系统监控"])
-async def server_status():
-    """获取服务器实时状态"""
+async def server_status(_: User = Depends(get_current_user)):
+    """获取服务器实时状态（需要 JWT 认证）"""
     import app.tools.server_health as sh
     try:
         result = await run_in_threadpool(sh.server_health.invoke, {})
@@ -486,22 +552,22 @@ async def server_status():
 
 @app.get("/health", tags=["系统管理"])
 async def health():
-    """服务健康检查"""
+    """服务健康检查。进程可用返回 200；数据库不可用返回 503。"""
     llm_ok = DeepSeekClient().is_configured
 
-    # 检查数据库状态
     db_ok = False
     servers_count = 0
     try:
         db_session = next(get_db())
-        db_session.execute(sa_text("SELECT 1"))
-        servers_count = db_session.query(ManagedServer).count()
-        db_session.close()
-        db_ok = True
+        try:
+            db_session.execute(sa_text("SELECT 1"))
+            servers_count = db_session.query(ManagedServer).count()
+            db_ok = True
+        finally:
+            db_session.close()
     except Exception as e:
         logger.warning("数据库健康检查失败: %s", e)
 
-    # 检查监控状态
     monitoring_ok = False
     try:
         from app.monitoring.collector import _collector_thread
@@ -509,8 +575,15 @@ async def health():
     except Exception:
         pass
 
-    return {
-        "status": "healthy",
+    mcp_status: dict = {"enabled": False, "connected": False}
+    try:
+        from app.mcp.manager import mcp_manager
+        mcp_status = mcp_manager.status()
+    except Exception:
+        pass
+
+    payload = {
+        "status": "healthy" if db_ok else "unhealthy",
         "version": APP_VERSION,
         "environment": settings.environment,
         "services": {
@@ -518,10 +591,20 @@ async def health():
             "llm": "ok" if llm_ok else "unconfigured",
             "database": "ok" if db_ok else "unavailable",
             "monitoring": "ok" if monitoring_ok else "inactive",
+            "mcp": "ok" if mcp_status.get("connected") else (
+                "disabled" if not mcp_status.get("enabled") else "disconnected"
+            ),
         },
-        "agent": "ready",
+        "mcp": {
+            "enabled": mcp_status.get("enabled"),
+            "connected": mcp_status.get("connected"),
+            "tool_count": mcp_status.get("tool_count", 0),
+            "error": mcp_status.get("error"),
+        },
+        "agent": "ready" if llm_ok else "unconfigured",
         "servers_managed": servers_count,
     }
+    return JSONResponse(status_code=200 if db_ok else 503, content=payload)
 
 
 def _database_kind() -> str:
@@ -619,13 +702,21 @@ async def list_conversations(
         Conversation.user_id == current_user.id
     ).order_by(Conversation.updated_at.desc()).all()
 
+    counts = dict(
+        db.query(Message.conversation_id, func.count(Message.id))
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .filter(Conversation.user_id == current_user.id)
+        .group_by(Message.conversation_id)
+        .all()
+    )
+
     return [
         {
             "id": c.id,
             "title": c.title,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "updated_at": c.updated_at.isoformat() if c.updated_at else None,
-            "message_count": len(c.messages),
+            "message_count": int(counts.get(c.id, 0)),
         }
         for c in convs
     ]
@@ -771,7 +862,7 @@ async def overview(
 
     resources = {"cpu": {"percent": 0, "cores": 0}, "memory": {"percent": 0, "total_gb": 0, "used_gb": 0}, "disks": []}
     try:
-        resources = sh.server_health.invoke({})
+        resources = await run_in_threadpool(sh.server_health.invoke, {})
     except Exception:
         pass
 
@@ -822,6 +913,13 @@ async def overview(
         AgentExecution.user_id == current_user.id
     ).order_by(AgentExecution.created_at.desc()).limit(8).all()
 
+    monitoring_ok = False
+    try:
+        from app.monitoring.collector import _collector_thread
+        monitoring_ok = _collector_thread is not None and _collector_thread.is_alive()
+    except Exception:
+        pass
+
     health = {
         "status": "healthy" if llm_ok and db_ok else "degraded",
         "version": APP_VERSION,
@@ -830,7 +928,7 @@ async def overview(
             "api": "ok",
             "llm": "ok" if llm_ok else "error",
             "database": "ok" if db_ok else "error",
-            "monitoring": "ok",
+            "monitoring": "ok" if monitoring_ok else "inactive",
         },
         "servers_managed": stats_payload.get("total_servers", 0),
     }
@@ -939,8 +1037,37 @@ class CreateServerRequest(BaseModel):
     port: int = Field(22, ge=1, le=65535, description="SSH 端口")
     username: str = Field(..., min_length=1, max_length=100, description="SSH 登录用户名")
     auth_type: str = Field("password", description="认证类型: password 或 key")
-    auth_credential: str = Field(..., min_length=1, max_length=1024, description="密码或密钥内容")
+    auth_credential: str = Field(..., min_length=1, max_length=16384, description="密码或密钥内容")
     description: str = Field("", max_length=500, description="服务器描述")
+
+
+LOCAL_SERVER_ID = -1
+
+
+def _localhost_server_dict() -> dict:
+    """列表/详情共用的本机哨兵条目。"""
+    import socket
+    import platform
+
+    return {
+        "id": LOCAL_SERVER_ID,
+        "name": "本机 (localhost)",
+        "host": socket.gethostname() if socket.gethostname() else "127.0.0.1",
+        "port": 0,
+        "username": platform.node(),
+        "auth_type": "local",
+        "description": f"当前运行主机 · {platform.system()} {platform.release()}",
+        "is_active": True,
+        "created_at": None,
+        "updated_at": None,
+    }
+
+
+def _reject_localhost_mutation():
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "本机条目不可修改或删除"},
+    )
 
 
 class UpdateServerRequest(BaseModel):
@@ -950,7 +1077,7 @@ class UpdateServerRequest(BaseModel):
     port: Optional[int] = Field(None, ge=1, le=65535, description="SSH 端口")
     username: Optional[str] = Field(None, max_length=100, description="SSH 登录用户名")
     auth_type: Optional[str] = Field(None, description="认证类型: password 或 key")
-    auth_credential: Optional[str] = Field(None, max_length=1024, description="密码或密钥内容")
+    auth_credential: Optional[str] = Field(None, max_length=16384, description="密码或密钥内容")
     description: Optional[str] = Field(None, max_length=500, description="服务器描述")
     is_active: Optional[bool] = Field(None, description="是否启用")
 
@@ -980,7 +1107,7 @@ async def create_server(
         port=req.port,
         username=req.username,
         auth_type=req.auth_type,
-        auth_credential=req.auth_credential,
+        auth_credential=encrypt_secret(req.auth_credential),
         description=req.description,
     )
     db.add(server)
@@ -996,29 +1123,15 @@ async def list_servers(
     db: SASession = Depends(get_db),
 ):
     """获取服务器列表 — 始终包含本机 + 当前用户注册的远程服务器。"""
-    import socket
-    import platform
-
-    # 构建本机条目（始终展示）
-    local = {
-        "id": -1,
-        "name": "本机 (localhost)",
-        "host": socket.gethostname() if socket.gethostname() else "127.0.0.1",
-        "port": 0,
-        "username": platform.node(),
-        "auth_type": "local",
-        "description": f"当前运行主机 · {platform.system()} {platform.release()}",
-        "is_active": True,
-        "created_at": None,
-        "updated_at": None,
-    }
+    local = _localhost_server_dict()
 
     # 远程注册服务器
     servers = db.query(ManagedServer).filter(
         ManagedServer.user_id == current_user.id
     ).order_by(ManagedServer.created_at.desc()).all()
 
-    return [local] + [_server_to_dict(s) for s in servers]
+    payload = [local] + [_server_to_dict(s) for s in servers]
+    return payload
 
 
 @app.get("/api/servers/{server_id}", tags=["服务器管理"])
@@ -1028,6 +1141,8 @@ async def get_server(
     db: SASession = Depends(get_db),
 ):
     """获取指定服务器的详细信息（需要 JWT 认证）"""
+    if server_id == LOCAL_SERVER_ID:
+        return _localhost_server_dict()
     server = db.query(ManagedServer).filter(
         ManagedServer.id == server_id,
         ManagedServer.user_id == current_user.id,
@@ -1050,6 +1165,8 @@ async def update_server(
     db: SASession = Depends(get_db),
 ):
     """更新服务器信息（需要 JWT 认证）"""
+    if server_id == LOCAL_SERVER_ID:
+        return _reject_localhost_mutation()
     server = db.query(ManagedServer).filter(
         ManagedServer.id == server_id,
         ManagedServer.user_id == current_user.id,
@@ -1062,6 +1179,8 @@ async def update_server(
         )
 
     update_data = req.model_dump(exclude_unset=True)
+    if update_data.get("auth_credential"):
+        update_data["auth_credential"] = encrypt_secret(update_data["auth_credential"])
     for field, value in update_data.items():
         if value is not None:
             setattr(server, field, value)
@@ -1079,6 +1198,8 @@ async def delete_server(
     db: SASession = Depends(get_db),
 ):
     """删除服务器注册信息（需要 JWT 认证）"""
+    if server_id == LOCAL_SERVER_ID:
+        return _reject_localhost_mutation()
     server = db.query(ManagedServer).filter(
         ManagedServer.id == server_id,
         ManagedServer.user_id == current_user.id,
@@ -1103,6 +1224,8 @@ async def test_server_connection(
     db: SASession = Depends(get_db),
 ):
     """测试与远程服务器的 SSH 连接（需要 JWT 认证）"""
+    if server_id == LOCAL_SERVER_ID:
+        return _reject_localhost_mutation()
     server = db.query(ManagedServer).filter(
         ManagedServer.id == server_id,
         ManagedServer.user_id == current_user.id,
@@ -1115,9 +1238,10 @@ async def test_server_connection(
         )
 
     from app.tools.ssh_ops import _exec_ssh_command
-    result = _exec_ssh_command(server.name, "uptime", timeout=10)
+    result = await run_in_threadpool(_exec_ssh_command, server.name, "uptime", 10)
 
-    success = "执行失败" not in result and "认证失败" not in result and "异常" not in result and "未找到" not in result
+    failure_marks = ("执行失败", "认证失败", "异常", "未找到", "连接错误", "失败")
+    success = not any(mark in result for mark in failure_marks)
 
     return {
         "success": success,
@@ -1146,21 +1270,14 @@ def _server_to_dict(server: ManagedServer) -> dict:
 # ============================================================
 # 监控指标 API
 # ============================================================
-@app.get("/api/monitoring/current", tags=["系统监控"])
-async def monitoring_current(
-    current_user: User = Depends(get_current_user),
-):
-    """获取当前系统监控指标（需要 JWT 认证）"""
+def _collect_monitoring_snapshot() -> dict:
     import psutil
 
-    # CPU
     cpu_percent = psutil.cpu_percent(interval=0.3)
     cpu_info = {
         "percent": cpu_percent,
         "cores": psutil.cpu_count(),
     }
-
-    # 内存
     mem = psutil.virtual_memory()
     memory_info = {
         "total_gb": round(mem.total / (1024**3), 1),
@@ -1168,8 +1285,6 @@ async def monitoring_current(
         "free_gb": round(mem.available / (1024**3), 1),
         "percent": mem.percent,
     }
-
-    # 磁盘
     disks = []
     for p in psutil.disk_partitions():
         try:
@@ -1183,12 +1298,15 @@ async def monitoring_current(
             })
         except PermissionError:
             continue
+    return {"cpu": cpu_info, "memory": memory_info, "disks": disks}
 
-    return {
-        "cpu": cpu_info,
-        "memory": memory_info,
-        "disks": disks,
-    }
+
+@app.get("/api/monitoring/current", tags=["系统监控"])
+async def monitoring_current(
+    current_user: User = Depends(get_current_user),
+):
+    """获取当前系统监控指标（需要 JWT 认证）"""
+    return await run_in_threadpool(_collect_monitoring_snapshot)
 
 
 # ============================================================
@@ -1211,7 +1329,7 @@ async def resolve_alert(
     current_user: User = Depends(get_current_user),
 ):
     """关闭告警（需要 JWT 认证）"""
-    from app.alert.manager import resolve_alert, ai_analyze_alert
+    from app.alert.manager import resolve_alert
     success = resolve_alert(alert_id)
     if not success:
         return JSONResponse(
@@ -1235,7 +1353,7 @@ async def chat_stream(
     req: StreamChatRequest,
     request: Request,
     db: SASession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_chat_user),
 ):
     """Agent 对话流式接口（SSE）— 实时推送 Agent 执行过程"""
     import uuid
@@ -1272,14 +1390,19 @@ async def chat_stream(
     agent_start = time.monotonic()
 
     def _run_agent_thread():
+        from app.database.session import get_local_session
         from app.streaming.agent_stream import run_agent_with_streaming
-        return run_agent_with_streaming(
-            message=req.message,
-            stream_id=stream_id,
-            db=db,
-            user_id=user_id,
-            conversation_id=conversation_id,
-        )
+        worker_db = get_local_session()
+        try:
+            return run_agent_with_streaming(
+                message=req.message,
+                stream_id=stream_id,
+                db=worker_db,
+                user_id=user_id,
+                conversation_id=conversation_id,
+            )
+        finally:
+            worker_db.close()
 
     async def _run_and_persist():
         try:
@@ -1292,11 +1415,12 @@ async def chat_stream(
                     _save_messages(db, conversation_id, req.message, report, trace)
                     _save_agent_execution(
                         db, current_user.id, conversation_id,
-                        status="success", duration=agent_duration,
+                        status=_execution_status_for(report), duration=agent_duration,
                         tools_called=len([
                             t for t in trace
                             if t.get("status") == "completed" and "调用" in t.get("step", "")
                         ]),
+                        error=(report[:200] if _agent_failed(report) else None),
                     )
                 except Exception as e:
                     logger.warning("保存会话失败: %s", e)
@@ -1351,14 +1475,57 @@ async def get_agent_traces(
 # ============================================================
 # WebSocket 实时 Agent Trace
 # ============================================================
+def _websocket_token(websocket: WebSocket) -> str:
+    token = (websocket.query_params.get("token") or "").strip()
+    if token:
+        return token
+    auth = websocket.headers.get("authorization") or websocket.headers.get("Authorization") or ""
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return ""
+
+
+def _websocket_user(websocket: WebSocket, conversation_id: int) -> Optional[User]:
+    """校验 JWT，并在会话已存在时确认归属。失败返回 None。"""
+    token = _websocket_token(websocket)
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if not payload or payload.get("sub") is None:
+        return None
+    try:
+        user_id = int(payload["sub"])
+    except (TypeError, ValueError):
+        return None
+
+    db = get_local_session()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            return None
+        if conversation_id:
+            conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+            if conv is not None and conv.user_id != user.id:
+                return None
+        db.expunge(user)
+        return user
+    finally:
+        db.close()
+
+
 @app.websocket("/ws/chat/{conversation_id}")
 async def websocket_chat_trace(
     websocket: WebSocket,
     conversation_id: int,
 ):
-    """WebSocket 实时 Agent 执行轨迹推送"""
+    """WebSocket 实时 Agent 执行轨迹推送（需要 JWT）"""
+    user = _websocket_user(websocket, conversation_id)
+    if user is None:
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
-    logger.info("WebSocket 连接: conversation_id=%d", conversation_id)
+    logger.info("WebSocket 连接: conversation_id=%d user=%s", conversation_id, user.username)
 
     try:
         while True:
@@ -1377,10 +1544,9 @@ async def websocket_chat_trace(
             })
 
             # 执行 Agent
-            def _run_with_callbacks():
-                agent_logger = logging.getLogger("agent")
+            def _run_with_callbacks(msg: str = user_message):
                 initial_state = {
-                    "messages": [{"role": "user", "content": user_message}],
+                    "messages": [{"role": "user", "content": msg}],
                     "tool_calls": [],
                     "tool_results": [],
                     "final_report": "",
@@ -1390,9 +1556,9 @@ async def websocket_chat_trace(
                     result = _agent_graph.invoke(initial_state)
                     return result
                 except Exception:
-                    import traceback
+                    logger.exception("WebSocket Agent 执行失败")
                     return {
-                        "final_report": f"## Agent Error\n\n```\n{traceback.format_exc()}\n```",
+                        "final_report": "Agent 执行失败，请稍后重试。",
                         "trace": [],
                     }
 
@@ -1402,15 +1568,18 @@ async def websocket_chat_trace(
 
             # 推送 trace 步骤
             for step in trace:
+                if not isinstance(step, dict):
+                    continue
+                step_name = step.get("step", "")
                 step_type = "tool_call"
-                if step["step"] == "分析用户需求":
+                if step_name == "分析用户需求":
                     step_type = "agent_start"
-                elif step["step"] == "AI 生成报告":
+                elif step_name == "AI 生成报告":
                     step_type = "complete"
 
                 await websocket.send_json({
                     "type": step_type,
-                    "step": step["step"],
+                    "step": step_name,
                     "status": step.get("status", "completed"),
                     "tool": step.get("tool", ""),
                     "duration_ms": step.get("duration_ms", 0),
@@ -1430,7 +1599,7 @@ async def websocket_chat_trace(
         try:
             await websocket.send_json({
                 "type": "error",
-                "content": str(e),
+                "content": "内部错误",
             })
         except Exception:
             pass

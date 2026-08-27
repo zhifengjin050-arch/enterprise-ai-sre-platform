@@ -37,7 +37,7 @@
 ┌───────▼──────┐ ┌────▼─────┐ ┌─────▼──────────────────────┐
 │  推理层       │ │ 知识层    │ │   工具层                    │
 │  LLM Engine  │ │ RAG + Hub│ │ ┌─────────────────────────┐│
-│  DeepSeek    │ │ pgvector │ │ │ Tool Router             ││
+│  DeepSeek    │ │ embeddings│ │ │ Tool Router             ││
 │  Function    │ │ 文档上传  │ │ │ ├─ 内置 18 工具          ││
 │  Calling     │ │ 飞书同步  │ │ │ ├─ MCP Client → 17 工具  ││
 │  SiliconFlow │ │ 多租户   │ │ │ └─ 知识工具 2 个          ││
@@ -257,7 +257,7 @@ Organization A                    Organization B
 
 - 来源: SiliconFlow / OpenAI 兼容 Embedding API
 - 向量维度: 1024 (text-embedding-v3)
-- 存储: pgvector 余弦相似度索引
+- 存储: JSON embedding + 应用层余弦相似度（SQLite / PostgreSQL 通用）
 - 业务隔离: organization_id + user_id 过滤
 
 ---
@@ -288,7 +288,7 @@ Organization A                    Organization B
 │     - MCP Tool Metadata: risk_level / permission             │
 │                                                             │
 │  5. 数据安全                                                │
-│     - 凭据加密存储 (Fernet)                                   │
+│     - 凭据加密存储 (Fernet: 知识源 + SSH)                     │
 │     - 日志脱敏 (SecretFilter)                                │
 │     - .env gitignore                                          │
 │                                                             │
@@ -309,8 +309,10 @@ Organization A                    Organization B
 |------|------|------|------|
 | `/api/auth/register` | POST | 注册 | 无 |
 | `/api/auth/login` | POST | 登录 → JWT | 无 |
-| `/api/chat` | POST | Agent 对话 | JWT |
-| `/api/chat/stream` | POST | Agent SSE 流式对话 | JWT |
+| `/api/chat` | POST | Agent 对话 | JWT（生产必填；开发可匿名） |
+| `/api/chat/stream` | POST | Agent SSE 流式对话 | JWT（生产必填；开发可匿名） |
+| `/api/server/status` | GET | 本机资源快照 | JWT |
+| `/ws/chat/{id}` | WS | Agent Trace | JWT（`?token=`） |
 | `/api/knowledge/upload` | POST | 上传知识文档 | JWT |
 | `/api/knowledge` | GET | 列出知识文档 | JWT |
 | `/api/knowledge/search` | POST | 语义搜索 | JWT |

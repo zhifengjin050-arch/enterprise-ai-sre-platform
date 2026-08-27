@@ -3,7 +3,6 @@
 定义所有监控指标的 Prometheus Counter / Gauge / Histogram。
 """
 
-import time
 from prometheus_client import Counter, Gauge, Histogram, generate_latest, REGISTRY
 
 # ============================================================

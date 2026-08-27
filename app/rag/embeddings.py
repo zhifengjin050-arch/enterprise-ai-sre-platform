@@ -5,9 +5,9 @@
 支持 text-embedding-ada-002 等模型。
 """
 
-import json
 import logging
 import hashlib
+from collections import OrderedDict
 from typing import List, Optional
 
 import httpx
@@ -30,8 +30,8 @@ class EmbeddingService:
         self.base_url = base_url or settings.effective_llm_base_url
         self.model = model or settings.embedding_model
 
-        # 缓存
-        self._cache: dict[str, List[float]] = {}
+        self._cache: OrderedDict[str, List[float]] = OrderedDict()
+        self._cache_max = 512
 
     def _get_cache_key(self, text: str) -> str:
         return hashlib.md5(text.encode("utf-8")).hexdigest()
@@ -39,12 +39,17 @@ class EmbeddingService:
     def get_embedding(self, text: str, allow_fallback: bool = True) -> List[float]:
         """获取单段文本的向量表示。Hub 文档应关闭降级以免污染相似度。"""
         cache_key = self._get_cache_key(text)
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            self._cache.move_to_end(cache_key)
+            return cached
 
         try:
             embedding = self._call_embedding_api(text)
             self._cache[cache_key] = embedding
+            self._cache.move_to_end(cache_key)
+            while len(self._cache) > self._cache_max:
+                self._cache.popitem(last=False)
             return embedding
         except Exception as e:
             if not allow_fallback:

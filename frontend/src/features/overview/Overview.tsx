@@ -145,9 +145,6 @@ export default function Overview() {
           setData(r.data)
           setError('')
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7421/ingest/ef51d3f6-500c-4df2-9cf3-d971502cfbd2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c5f825'},body:JSON.stringify({sessionId:'c5f825',runId:'v32-debug',hypothesisId:'H3',location:'Overview.tsx:load',message:'overview primary ok',data:{hasData:!!r.data,score:r.data?.health_score},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       } catch {
         try {
           const fallback = await loadFallback()
@@ -155,17 +152,11 @@ export default function Overview() {
             setData(fallback)
             setError('')
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7421/ingest/ef51d3f6-500c-4df2-9cf3-d971502cfbd2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c5f825'},body:JSON.stringify({sessionId:'c5f825',runId:'v32-debug',hypothesisId:'H3',location:'Overview.tsx:load',message:'overview fallback',data:{hasData:!!fallback,score:fallback?.health_score},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         } catch {
           if (!cancelled) {
             setData(null)
             setError(t('overview.loadError'))
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7421/ingest/ef51d3f6-500c-4df2-9cf3-d971502cfbd2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c5f825'},body:JSON.stringify({sessionId:'c5f825',runId:'v32-debug',hypothesisId:'H3',location:'Overview.tsx:load',message:'overview failed',data:{ok:false},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -177,7 +168,6 @@ export default function Overview() {
       cancelled = true
     }
     // reloadKey 触发重试；不把 t 放进依赖，避免切语言/主题时误取消请求
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadKey])
 
   if (loading && !data) {

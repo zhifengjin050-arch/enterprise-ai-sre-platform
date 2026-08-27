@@ -73,5 +73,5 @@ class TestMonitoringPage:
         assert os.path.exists(sidebar_path)
         with open(sidebar_path, "r", encoding="utf-8") as f:
             content = f.read()
-        assert "系统监控" in content or "monitoring" in content
-        assert "/monitoring" in content
+        assert "/monitor" in content
+        assert "nav.monitor" in content

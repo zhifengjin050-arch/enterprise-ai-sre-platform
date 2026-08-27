@@ -8,10 +8,9 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session as SASession
 
-from app.rag.loader import Document, load_text, load_file
+from app.rag.loader import load_text, load_file
 from app.rag.splitter import TextSplitter
 from app.rag.embeddings import embedding_service
-from app.rag.vector_store import store_chunk_embedding, similarity_search
 from app.rag.retriever import retrieve_knowledge, format_knowledge_context
 
 logger = logging.getLogger(__name__)

@@ -117,7 +117,7 @@ def test_system_status_dev_logged_in_ok():
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert set(data.keys()) == ALLOWED_STATUS_KEYS
-    assert data["version"] == "3.2.1"
+    assert data["version"] == APP_VERSION
     assert data["database"] in ("sqlite", "postgresql", "other")
     assert isinstance(data["mcp_enabled"], bool)
     assert isinstance(data["mcp_tools"], int)
@@ -169,6 +169,6 @@ def test_system_status_production_admin_ok(monkeypatch):
     try:
         resp = client.get("/api/system/status", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200, resp.text
-        assert resp.json()["version"] == "3.2.1"
+        assert resp.json()["version"] == APP_VERSION
     finally:
         monkeypatch.setattr(live, "environment", "development")

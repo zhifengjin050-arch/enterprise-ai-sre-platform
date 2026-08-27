@@ -40,7 +40,7 @@ Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/e
 
 - **AI Agent runtime** — `START → agent → tools → agent → END`
 - **MCP tool ecosystem** — System / Docker / Kubernetes / SSH without rewriting the orchestrator
-- **RAG Knowledge Hub** — pgvector search scoped by `organization_id`
+- **RAG Knowledge Hub** — JSON embeddings + cosine search, scoped by `organization_id`
 - **Kubernetes diagnosis** — CrashLoopBackOff, OOMKilled, ImagePullBackOff, 502/503
 - **Agent Trace + SSE** — every tool call timed and streamed to the console
 - **Enterprise automation** — incident reports, runbook citation, multi-tenant RBAC
@@ -49,7 +49,7 @@ Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/e
 
 ## Architecture
 
-<img src="docs/images/architecture.png" alt="System architecture" width="100%" />
+<img src="screenshots/07-architecture.png" alt="System architecture" width="100%" />
 
 ```mermaid
 flowchart TB
@@ -62,7 +62,7 @@ flowchart TB
     MCP --> K8s[Kubernetes]
     MCP --> Docker[Docker]
     MCP --> SSH[SSH]
-    RAG --> PG[(PostgreSQL + pgvector)]
+    RAG --> PG[(PostgreSQL + embeddings)]
     subgraph security [Multi-tenant Security]
       JWT[JWT / RBAC]
       Org[Organization isolation]
@@ -101,7 +101,7 @@ flowchart LR
 |-------|--------|
 | Agent | LangGraph · LangChain · DeepSeek (OpenAI-compatible) |
 | API | Python 3.12 · FastAPI · SSE |
-| Knowledge | RAG · pgvector · Feishu connector |
+| Knowledge | RAG · cosine embeddings · Feishu connector |
 | Tools | MCP · kubectl · Docker · SSH |
 | Frontend | React 18 · TypeScript · Vite · Tailwind |
 | Data | PostgreSQL 16 |
@@ -113,11 +113,11 @@ flowchart LR
 
 | Dashboard | Agent interaction |
 |-----------|-------------------|
-| ![Dashboard](docs/images/dashboard.png) | ![Agent](docs/images/agent-chat.png) |
+| ![Dashboard](screenshots/01-dashboard.png) | ![Agent](screenshots/02-agent-chat.png) |
 
 | Kubernetes | Architecture |
 |------------|--------------|
-| ![Kubernetes](docs/images/kubernetes.png) | ![Architecture](docs/images/architecture.png) |
+| ![Kubernetes](screenshots/05-kubernetes.png) | ![Architecture](screenshots/07-architecture.png) |
 
 Product preview assets for GitHub showcase (1440-class widescreen). Live console routes: `/overview`, `/ops`, `/infra`, `/knowledge`, `/traces`.
 

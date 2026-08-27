@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 120000,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -27,6 +27,17 @@ api.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+export function apiErrorMessage(error: unknown, fallback = '请求失败'): string {
+  if (axios.isAxiosError(error)) {
+    const detail = error.response?.data?.detail
+    if (typeof detail === 'string' && detail.trim()) return detail
+    if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg)
+    if (error.message) return error.message
+  }
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
 
 export default api
 export { api }

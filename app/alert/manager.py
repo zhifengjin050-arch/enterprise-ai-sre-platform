@@ -4,13 +4,11 @@
 """
 
 import datetime
-import json
 import logging
 import threading
 import time
 from typing import Optional
 
-from app.config import settings
 from app.alert.rules import DEFAULT_RULES, AlertRule
 from app.alert.channels import create_channels, NotificationChannel
 
@@ -18,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 内存告警存储（生产环境应使用数据库）
 _alerts: list[dict] = []
+_ALERT_MAX = 500
 _last_fired: dict[str, float] = {}  # rule_name -> last_fired_timestamp
 
 _channels: list[NotificationChannel] = []
@@ -71,6 +70,8 @@ def evaluate_rules() -> list[dict]:
 
                 alert = _create_alert(rule, message)
                 _alerts.append(alert)
+                if len(_alerts) > _ALERT_MAX:
+                    del _alerts[: len(_alerts) - _ALERT_MAX]
                 _last_fired[rule.name] = now
                 new_alerts.append(alert)
 

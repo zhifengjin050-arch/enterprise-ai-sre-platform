@@ -153,7 +153,7 @@ class ManagedServer(Base):
     port = Column(Integer, default=22, nullable=False, comment="SSH 端口")
     username = Column(String(100), nullable=False, comment="SSH 登录用户名")
     auth_type = Column(SAEnum(SSHKeyType), default=SSHKeyType.password, nullable=False, comment="认证类型")
-    auth_credential = Column(String(1024), nullable=True, comment="密码或密钥路径（加密存储）")
+    auth_credential = Column(Text, nullable=True, comment="密码或密钥（Fernet 加密存储）")
     description = Column(String(500), default="", comment="服务器描述")
     is_active = Column(Boolean, default=True, comment="是否启用")
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)

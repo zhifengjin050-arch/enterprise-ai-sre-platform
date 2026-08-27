@@ -140,6 +140,10 @@ const en: Dict = {
     noReport: '(no report)',
     errorPrefix: 'Error',
     resize: 'Drag to resize',
+    stop: 'Stop',
+    stopped: 'Generation stopped',
+    convLoadFail: 'Failed to load conversations',
+    deleteFail: 'Delete failed',
   },
   traces: {
     runs: 'Runs',

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -149,8 +148,8 @@ def main():
         "",
         "## Executive Summary",
         "",
-        f"| Total | Passed | Failed | Final Score |",
-        f"|-------|--------|--------|-------------|",
+        "| Total | Passed | Failed | Final Score |",
+        "|-------|--------|--------|-------------|",
         f"| {total} | {passed} | {failed} | **{final}/100** |",
         "",
         "## 评分维度",

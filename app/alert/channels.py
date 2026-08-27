@@ -7,10 +7,8 @@
 - 数据库记录（兜底）
 """
 
-import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import httpx
 

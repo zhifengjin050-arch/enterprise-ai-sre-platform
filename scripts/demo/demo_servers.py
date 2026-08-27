@@ -13,6 +13,7 @@ import logging
 from app.database.database import engine, Base
 from app.database.models import User, ManagedServer
 from app.database.session import get_local_session
+from app.security.secrets import encrypt_secret
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ def create_demo_servers(db_session=None) -> list[ManagedServer]:
                 port=server_data["port"],
                 username=server_data["username"],
                 auth_type=server_data["auth_type"],
-                auth_credential=server_data["auth_credential"],
+                auth_credential=encrypt_secret(server_data["auth_credential"]),
                 description=server_data["description"],
                 is_active=True,
             )

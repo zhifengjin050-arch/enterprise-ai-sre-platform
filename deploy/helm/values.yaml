@@ -42,13 +42,14 @@ backend:
     VISION_MODEL: Qwen/Qwen3-VL-8B-Instruct
     # Database
     DATABASE_URL: postgresql://devops:$(POSTGRES_PASSWORD)@ai-devops-postgres:5432/devops_agent
-    # Redis
+    # Redis（生产请带密码：redis://:PASSWORD@ai-devops-redis:6379/0）
     REDIS_URL: redis://ai-devops-redis:6379/0
     # MCP
     ENABLE_MCP: "false"
     # CORS
     CORS_ORIGINS: https://ai-devops.example.com
-    # JWT
+    ALLOW_REGISTER: "false"
+    # JWT_SECRET / SILICONFLOW_API_KEY 必须来自 Secret，不要写进 values
     JWT_EXPIRE_MINUTES: 1440
 
   # Additional environment variables (merged with above)

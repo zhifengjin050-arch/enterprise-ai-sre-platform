@@ -1,12 +1,8 @@
 """向量存储
 
-基于内存 + 数据库的向量存储实现。
-与 pgvector 兼容的设计，但同时支持 SQLite 开发环境。
-
-存储策略：
-- 向量以 JSON 格式存储在 knowledge_chunks 表的 embedding 字段
-- 检索时使用余弦相似度进行比对
-- 支持 pgvector 的 SQL 级别向量检索（PostgreSQL 生产环境）
+基于数据库的向量存储实现。
+向量以 JSON 写入 `knowledge_chunks.embedding`，检索时在应用层计算余弦相似度。
+同时兼容 SQLite 开发库与 PostgreSQL 生产库；当前未启用 pgvector 扩展的 SQL 级索引。
 """
 
 import json
@@ -17,8 +13,6 @@ from typing import List, Optional, Tuple
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session as SASession
 
-from app.database.database import engine, Base
-from app.database.session import get_local_session
 from app.rag.embeddings import embedding_service
 
 logger = logging.getLogger(__name__)
@@ -88,7 +82,10 @@ def similarity_search(
         or_(KnowledgeDocument.status.is_(None), KnowledgeDocument.status == "active")
     )
 
-    chunks = q.all()
+    _CHUNK_SCAN_CAP = 2000
+    chunks = q.limit(_CHUNK_SCAN_CAP).all()
+    if len(chunks) >= _CHUNK_SCAN_CAP:
+        logger.warning("知识检索扫描达到上限 %d，结果可能不完整", _CHUNK_SCAN_CAP)
 
     scored: List[Tuple[dict, float]] = []
     for chunk in chunks:

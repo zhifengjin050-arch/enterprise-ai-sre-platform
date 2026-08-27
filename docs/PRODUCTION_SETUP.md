@@ -1,4 +1,4 @@
-# Production Setup Notes (v3.2.1)
+# Production Setup Notes (v3.3.0)
 
 > `docker-compose.prod.yml` **架构保持不变**。本文只记录必须由运维覆盖的风险与变量。  
 > 生产启动：`docker compose -f docker-compose.prod.yml up -d`（与 README 一致）
@@ -11,6 +11,7 @@
 |------|------|
 | `ENVIRONMENT` | 必须 `production` |
 | `JWT_SECRET` | 长度 ≥ 32；不得包含 `change-me` / `secret` / `password` / `test`。生成：`openssl rand -hex 32` |
+| `ALLOW_REGISTER` | 生产默认关闭公开注册（compose 已设 `false`） |
 | `POSTGRES_PASSWORD` | 替换默认 `devops_prod_secret` |
 | `REDIS_PASSWORD` | 替换默认 `redis_prod_pass` |
 | `GRAFANA_USER` / `GRAFANA_PASSWORD` | 替换默认 `admin` / `admin` |
@@ -64,6 +65,6 @@ test: ["CMD", "redis-cli", "--raw", "ping"]
 
 1. `.env`：强 `JWT_SECRET`、强库/Redis/Grafana 密码、有效 LLM Key。
 2. `docker compose -f docker-compose.prod.yml up -d`
-3. `GET /health` → `version=3.2.1`，`environment=production`
+3. `GET /health` → `version=3.3.0`，`environment=production`
 4. 使用 **admin 或 devops** 账号访问 `GET /api/system/status`（JWT 必填；普通 user 为 403）
 5. 确认响应 **不含** API Key / JWT / Database URL / Redis URL / MCP 路径

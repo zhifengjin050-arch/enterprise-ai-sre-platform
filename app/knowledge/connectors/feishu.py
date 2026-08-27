@@ -150,7 +150,7 @@ class FeishuConnector:
         client = self._client()
         delay = 1.0
         last_error = "飞书 API 调用失败"
-        for attempt in range(5):
+        for _attempt in range(5):
             token = self._ensure_token()
             resp = client.request(
                 method,

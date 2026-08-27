@@ -18,7 +18,6 @@ import os
 import sys
 import json
 import time
-import subprocess
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -865,7 +864,7 @@ def main():
             icon = "✅" if r["passed"] else "❌"
             f.write(f"| {i} | {r['phase']} | {r['name']} | {icon} {'PASS' if r['passed'] else 'FAIL'} | {r['duration']:.1f}s |\n")
 
-        f.write(f"""
+        f.write("""
 ### 3.2 Failed Tests Detail
 
 """)

@@ -31,7 +31,16 @@ def close_redis():
 
 def ping_redis() -> bool:
     try:
-        return bool(get_redis().ping())
+        import redis as redis_lib
+        client = redis_lib.Redis.from_url(
+            settings.redis_url or "redis://localhost:6379/0",
+            socket_connect_timeout=0.5,
+            socket_timeout=0.5,
+        )
+        try:
+            return bool(client.ping())
+        finally:
+            client.close()
     except Exception:
         return False
 

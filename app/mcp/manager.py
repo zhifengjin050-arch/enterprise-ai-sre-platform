@@ -49,15 +49,6 @@ class MCPManager:
             self._config = config or get_mcp_config()
             if not self._config.enabled:
                 logger.info("ENABLE_MCP=false，跳过 MCP 连接")
-                # #region agent log
-                try:
-                    import json as _json, time as _time
-                    from pathlib import Path as _P
-                    with open(_P(__file__).resolve().parents[2] / "debug-c5f825.log", "a", encoding="utf-8") as _f:
-                        _f.write(_json.dumps({"sessionId":"c5f825","runId":"v32-debug","hypothesisId":"H1","location":"app/mcp/manager.py:start","message":"MCP skipped disabled","data":{"enabled":False},"timestamp":int(_time.time()*1000)}, ensure_ascii=False)+"\n")
-                except Exception:
-                    pass
-                # #endregion
                 return False
 
             try:
@@ -85,15 +76,6 @@ class MCPManager:
                 self._started = True
                 self._start_error = None
                 logger.info("MCP Manager 启动成功，工具数=%d", len(self._wrappers))
-                # #region agent log
-                try:
-                    import json as _json, time as _time
-                    from pathlib import Path as _P
-                    with open(_P(__file__).resolve().parents[2] / "debug-c5f825.log", "a", encoding="utf-8") as _f:
-                        _f.write(_json.dumps({"sessionId":"c5f825","runId":"v32-debug","hypothesisId":"H1","location":"app/mcp/manager.py:start","message":"MCP start ok","data":{"enabled":True,"tool_count":len(self._wrappers),"tools":list(self._wrappers.keys())[:20]},"timestamp":int(_time.time()*1000)}, ensure_ascii=False)+"\n")
-                except Exception:
-                    pass
-                # #endregion
                 return True
             except Exception as e:
                 self._start_error = str(e)
