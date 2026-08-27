@@ -34,6 +34,14 @@ Repo: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/enterpr
 
 ---
 
+## Demo
+
+[![Demo video](docs/videos/cover.png)](docs/videos/demo.mp4)
+
+Click the cover to watch the walkthrough (Chinese narration + subtitles).
+
+---
+
 ## Features
 
 - Stateful Agent graph: `START → agent → tools → agent → END`
