@@ -36,9 +36,13 @@ Repo: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/enterpr
 
 ## Demo
 
-[![Demo video](docs/videos/cover.png)](docs/videos/demo.mp4)
+<video controls playsinline width="100%" poster="docs/videos/cover.png" preload="metadata">
+  <source src="https://cdn.jsdelivr.net/gh/zhifengjin050-arch/enterprise-ai-sre-platform@main/docs/videos/demo.mp4" type="video/mp4" />
+</video>
 
-Click the cover to watch the walkthrough (Chinese narration + subtitles).
+[![Demo video](docs/videos/cover.png)](https://zhifengjin050-arch.github.io/enterprise-ai-sre-platform/)
+
+Click the cover to watch the walkthrough (Chinese narration + subtitles). GitHub file pages do not play repo mp4s, so the player is hosted on GitHub Pages.
 
 ---
 
