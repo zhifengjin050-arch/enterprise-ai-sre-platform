@@ -1,3 +1,5 @@
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/hero-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/hero-light.svg"><img src="docs/showcase/hero-light.svg" alt="Enterprise AI SRE Platform · 以证据为中心的智能故障诊断" width="100%"></picture>
+
 <div align="center">
 
 # Enterprise AI DevOps Platform
@@ -18,7 +20,9 @@
 </div>
 
 <!-- engineering-guide:start -->
-## 🧭 工程导读 · 从场景到实现
+<a id="-工程导读--从场景到实现"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-01-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-01-light.svg"><img src="docs/showcase/section-01-light.svg" alt="工程导读 · 从场景到实现" width="100%"></picture></h2>
+
 
 **以证据为中心的智能故障诊断**。将故障描述转成分步诊断，结合基础设施现场信息与知识库，输出可追问、可核查的故障报告。
 
@@ -43,7 +47,9 @@ flowchart LR
 
 ---
 
-## Positioning
+<a id="positioning"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-02-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-02-light.svg"><img src="docs/showcase/section-02-light.svg" alt="Positioning" width="100%"></picture></h2>
+
 
 This is **not** a chatbot demo. It is an enterprise operations product:
 
@@ -60,7 +66,9 @@ Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/e
 
 ---
 
-## Demo
+<a id="demo"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-03-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-03-light.svg"><img src="docs/showcase/section-03-light.svg" alt="Demo" width="100%"></picture></h2>
+
 
 [![Demo video](docs/videos/cover.png)](https://zhifengjin050-arch.github.io/enterprise-ai-sre-platform/)
 
@@ -68,7 +76,9 @@ Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/e
 
 ---
 
-## Features
+<a id="features"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-04-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-04-light.svg"><img src="docs/showcase/section-04-light.svg" alt="Features" width="100%"></picture></h2>
+
 
 - **AI Agent runtime** — `START → agent → tools → agent → END`
 - **MCP tool ecosystem** — System / Docker / Kubernetes / SSH without rewriting the orchestrator
@@ -79,7 +89,9 @@ Repository: [enterprise-ai-sre-platform](https://github.com/zhifengjin050-arch/e
 
 ---
 
-## Architecture
+<a id="architecture"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-05-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-05-light.svg"><img src="docs/showcase/section-05-light.svg" alt="Architecture" width="100%"></picture></h2>
+
 
 <img src="screenshots/07-architecture.png" alt="System architecture" width="100%" />
 
@@ -115,7 +127,9 @@ flowchart LR
 
 ---
 
-## Use cases
+<a id="use-cases"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-06-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-06-light.svg"><img src="docs/showcase/section-06-light.svg" alt="Use cases" width="100%"></picture></h2>
+
 
 | Scenario | Example |
 |----------|---------|
@@ -127,7 +141,9 @@ flowchart LR
 
 ---
 
-## Tech Stack
+<a id="tech-stack"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-07-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-07-light.svg"><img src="docs/showcase/section-07-light.svg" alt="Tech Stack" width="100%"></picture></h2>
+
 
 | Layer | Stack |
 |-------|--------|
@@ -141,7 +157,9 @@ flowchart LR
 
 ---
 
-## Screenshots
+<a id="screenshots"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-08-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-08-light.svg"><img src="docs/showcase/section-08-light.svg" alt="Screenshots" width="100%"></picture></h2>
+
 
 | Dashboard | Agent interaction |
 |-----------|-------------------|
@@ -155,7 +173,9 @@ Product preview assets for GitHub showcase (1440-class widescreen). Live console
 
 ---
 
-## Quick Start
+<a id="quick-start"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-09-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-09-light.svg"><img src="docs/showcase/section-09-light.svg" alt="Quick Start" width="100%"></picture></h2>
+
 
 ```bash
 git clone https://github.com/zhifengjin050-arch/enterprise-ai-sre-platform.git
@@ -172,7 +192,9 @@ Local frontend: `cd frontend && npm install && npm run dev`
 
 ---
 
-## Deployment
+<a id="deployment"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-10-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-10-light.svg"><img src="docs/showcase/section-10-light.svg" alt="Deployment" width="100%"></picture></h2>
+
 
 | Mode | Entry |
 |------|--------|
@@ -184,7 +206,9 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
-## Roadmap
+<a id="roadmap"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-11-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-11-light.svg"><img src="docs/showcase/section-11-light.svg" alt="Roadmap" width="100%"></picture></h2>
+
 
 **v3.3.0 (current):** LangGraph Agent, MCP, RAG Hub, multi-tenant, Trace, SSE, Docker.
 
@@ -192,7 +216,9 @@ Later: multi-cloud intelligence, autonomous repair workflows, broader MCP catalo
 
 ---
 
-## License
+<a id="license"></a>
+<h2><picture><source media="(prefers-color-scheme: dark)" srcset="docs/showcase/section-12-dark.svg"><source media="(prefers-color-scheme: light)" srcset="docs/showcase/section-12-light.svg"><img src="docs/showcase/section-12-light.svg" alt="License" width="100%"></picture></h2>
+
 
 [MIT](LICENSE)
 

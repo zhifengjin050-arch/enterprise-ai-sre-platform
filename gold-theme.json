@@ -1,0 +1,68 @@
+{
+  "title": "Enterprise AI SRE Platform",
+  "subtitle": "以证据为中心的智能故障诊断",
+  "stack": "LangGraph · MCP · Kubernetes · Trace",
+  "repository": "zhifengjin050-arch/enterprise-ai-sre-platform",
+  "sections": [
+    {
+      "id": "section-01",
+      "title": "工程导读 · 从场景到实现",
+      "caption": "01 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-02",
+      "title": "Positioning",
+      "caption": "02 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-03",
+      "title": "Demo",
+      "caption": "03 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-04",
+      "title": "Features",
+      "caption": "04 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-05",
+      "title": "Architecture",
+      "caption": "05 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-06",
+      "title": "Use cases",
+      "caption": "06 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-07",
+      "title": "Tech Stack",
+      "caption": "07 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-08",
+      "title": "Screenshots",
+      "caption": "08 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-09",
+      "title": "Quick Start",
+      "caption": "09 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-10",
+      "title": "Deployment",
+      "caption": "10 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-11",
+      "title": "Roadmap",
+      "caption": "11 / PROJECT DOCUMENTATION"
+    },
+    {
+      "id": "section-12",
+      "title": "License",
+      "caption": "12 / PROJECT DOCUMENTATION"
+    }
+  ]
+}
